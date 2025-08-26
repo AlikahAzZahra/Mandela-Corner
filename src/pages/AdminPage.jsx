@@ -423,13 +423,14 @@ const AdminPage = () => {
             return;
         }
 
-        // Kalau ada request lama, batalkan, tapi JANGAN return—lanjutkan request baru
-        if (ordersInFlightRef.current && ordersAbortRef.current) {
-            try { ordersAbortRef.current.abort(); } catch {}
-        }
+        // Batalkan request sebelumnya jika masih jalan
+        try { ordersAbortRef.current?.abort(); } catch {}
+        ordersAbortRef.current = new AbortController();
 
-        const controller = new AbortController();
-        ordersAbortRef.current = controller;
+        if (ordersInFlightRef.current) {
+            console.log('Skip fetchOrders: in-flight');
+            return;
+        }
         ordersInFlightRef.current = true;
 
         try {
@@ -441,9 +442,9 @@ const AdminPage = () => {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json',
                 'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache',
+                'Pragma': 'no-cache'
             },
-            signal: controller.signal,
+            signal: ordersAbortRef.current.signal,
             });
 
             if (!response.ok) {
@@ -457,9 +458,7 @@ const AdminPage = () => {
 
             const data = await response.json();
             console.log('✅ Orders fetched:', Array.isArray(data) ? data.length : 0);
-
             setOrders(Array.isArray(data) ? data : []);
-            setLastRefresh(new Date()); // sekalian update waktu refresh
 
             if (Array.isArray(data) && data.length > 0) {
             console.log('💰 Payment statuses:', data.map(o => ({
@@ -467,24 +466,20 @@ const AdminPage = () => {
             })));
             }
         } catch (error) {
+            // Jangan ganggu user kalau request memang dibatalkan
             if (error.name === 'AbortError') {
             console.log('fetchOrders aborted (newer request started)');
             return;
             }
             console.error('Error fetching orders:', error);
-            // Saran: jangan kosongkan daftar bila error transient
-            // setOrders([]); 
+            setOrders([]);
             if (!String(error.message).includes('Auth failed')) {
             alert(`Gagal mengambil pesanan: ${error.message}`);
             }
         } finally {
-            // Pastikan hanya request TERBARU yang menurunkan flag
-            if (ordersAbortRef.current === controller) {
             ordersInFlightRef.current = false;
-            }
         }
         };
-
 
 
     const fetchMenuItems = async () => {
@@ -1643,7 +1638,6 @@ const AdminPage = () => {
             // batalkan request yang mungkin masih berjalan
             try { ordersAbortRef.current?.abort(); } catch {}
             };
-
         } else {
             console.log('🚫 No token, staying on login page');
         }
