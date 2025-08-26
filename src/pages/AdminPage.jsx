@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import '../styles/AdminPage.css'; 
 import PaymentModal from '../components/PaymentModal';
@@ -83,6 +83,10 @@ const AdminPage = () => {
     // STATE DEFINITIONS - SAFE INITIALIZATION
     // ===================================
     
+    const ordersAbortRef = useRef(null);
+    const ordersInFlightRef = useRef(false);
+
+
     // Auth states
     const [token, setToken] = useState(() => {
         try {
@@ -418,48 +422,65 @@ const AdminPage = () => {
             console.log('No token for fetchOrders');
             return;
         }
-        
+
+        // Batalkan request sebelumnya jika masih jalan
+        try { ordersAbortRef.current?.abort(); } catch {}
+        ordersAbortRef.current = new AbortController();
+
+        if (ordersInFlightRef.current) {
+            console.log('Skip fetchOrders: in-flight');
+            return;
+        }
+        ordersInFlightRef.current = true;
+
         try {
             const timestamp = forceRefresh ? `?t=${Date.now()}` : '';
             console.log('📦 Fetching orders with timestamp:', timestamp);
-            
+
             const response = await fetch(`${apiBaseUrl}/orders${timestamp}`, {
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            },
+            signal: ordersAbortRef.current.signal,
             });
-            
+
             if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
-                    console.error('Auth failed during fetch orders');
-                    handleLogout();
-                    return;
-                }
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            if (response.status === 401 || response.status === 403) {
+                console.error('Auth failed during fetch orders');
+                handleLogout();
+                return;
             }
-            
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
-            console.log('✅ Orders fetched:', data?.length || 0);
+            console.log('✅ Orders fetched:', Array.isArray(data) ? data.length : 0);
             setOrders(Array.isArray(data) ? data : []);
-            
+
             if (Array.isArray(data) && data.length > 0) {
-                console.log('💰 Payment statuses:', data.map(order => ({
-                    id: order.order_id,
-                    payment: order.payment_status,
-                    amount: order.total_amount
-                })));
+            console.log('💰 Payment statuses:', data.map(o => ({
+                id: o.order_id, payment: o.payment_status, amount: o.total_amount
+            })));
             }
-            
         } catch (error) {
+            // Jangan ganggu user kalau request memang dibatalkan
+            if (error.name === 'AbortError') {
+            console.log('fetchOrders aborted (newer request started)');
+            return;
+            }
             console.error('Error fetching orders:', error);
             setOrders([]);
-            if (!error.message.includes('Auth failed')) {
-                alert(`Gagal mengambil pesanan: ${error.message}`);
+            if (!String(error.message).includes('Auth failed')) {
+            alert(`Gagal mengambil pesanan: ${error.message}`);
             }
+        } finally {
+            ordersInFlightRef.current = false;
         }
-    };
+        };
+
 
     const fetchMenuItems = async () => {
         if (!token) return;
@@ -1605,14 +1626,19 @@ const AdminPage = () => {
             fetchTables();
             
             // More frequent polling for payment status sync - every 5 seconds
+            const POLL_MS = 5000; // 5 detik (boleh 3000–10000 sesuai kebutuhan)
+
             const intervalId = setInterval(() => {
-                fetchOrders(true); // Always force refresh for payment sync
-            },);
-            
+            fetchOrders(true);
+            }, POLL_MS);
+
             return () => {
-                console.log('🧹 Cleaning up polling interval');
-                clearInterval(intervalId);
+            console.log('🧹 Cleaning up polling interval');
+            clearInterval(intervalId);
+            // batalkan request yang mungkin masih berjalan
+            try { ordersAbortRef.current?.abort(); } catch {}
             };
+
         } else {
             console.log('🚫 No token, staying on login page');
         }
