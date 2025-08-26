@@ -192,13 +192,10 @@ const AdminPage = () => {
     const [isLoadingReport, setIsLoadingReport] = useState(false);
 
     // Try different backend ports - backend is running on 5000
-    const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:5000/api');
+    const [apiBaseUrl, setApiBaseUrl] = useState('https://let-s-pay-server.vercel.app/api');
     
     const API_PORTS = [
-        { port: 5000, url: 'http://localhost:5000/api' },
-        { port: 3000, url: 'http://localhost:3000/api' },
-        { port: 8000, url: 'http://localhost:8000/api' },
-        { port: 4000, url: 'http://localhost:4000/api' }
+        { url: 'https://let-s-pay-server.vercel.app/api' },
     ];
 
     // ===================================
@@ -373,7 +370,7 @@ const AdminPage = () => {
             console.error('❌ Error stack:', error.stack);
             
             if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                setLoginError('❌ Tidak dapat terhubung ke server. Pastikan:\n• Server backend berjalan di http://localhost:5000\n• Tidak ada firewall yang memblokir\n• Port 5000 tidak digunakan aplikasi lain');
+                setLoginError('❌ Tidak dapat terhubung ke server. Pastikan:\n• Server backend berjalan di https://let-s-pay-server.vercel.app\n• Tidak ada firewall yang memblokir\n• Port 5000 tidak digunakan aplikasi lain');
             } else if (error.message.includes('timeout')) {
                 setLoginError('⏰ Login timeout - Server tidak merespon. Cek:\n• Apakah server backend aktif?\n• Koneksi internet stabil?');
             } else if (error.message.includes('CORS')) {
@@ -635,7 +632,7 @@ const AdminPage = () => {
                 price: item.price || '',
                 category: item.category || 'makanan-nasi',
                 imageFile: null,
-                imageUrlPreview: item.image_url ? `http://localhost:5000${item.image_url}` : ''
+                imageUrlPreview: item.image_url ? `https://let-s-pay-server.vercel.app${item.image_url}` : ''
             });
             window.scrollTo({ top: 0, behavior: 'smooth' });
             setActiveMenuSubTab('menu-form');
@@ -1610,7 +1607,7 @@ const AdminPage = () => {
             // More frequent polling for payment status sync - every 5 seconds
             const intervalId = setInterval(() => {
                 fetchOrders(true); // Always force refresh for payment sync
-            }, 5000);
+            },);
             
             return () => {
                 console.log('🧹 Cleaning up polling interval');
@@ -2139,7 +2136,7 @@ const AdminPage = () => {
                                             return (
                                                 <div key={item.id_menu || index} className="menu-item-management-card">
                                                     <img 
-                                                        src={item.image_url ? `http://localhost:5000${item.image_url}` : 'https://placehold.co/150x150/CCCCCC/000000?text=No+Image'} 
+                                                        src={item.image_url ? `https://let-s-pay-server.vercel.app${item.image_url}` : 'https://placehold.co/150x150/CCCCCC/000000?text=No+Image'} 
                                                         onError={(e) => { 
                                                             e.target.onerror = null; 
                                                             e.target.src = 'https://placehold.co/150x150/CCCCCC/000000?text=No+Image'; 

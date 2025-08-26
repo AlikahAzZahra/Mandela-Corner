@@ -29,7 +29,7 @@ function MenuPage() {
     // State untuk mengontrol modal metode pembayaran
     const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
 
-    const API_BASE_URL = 'http://localhost:5000/api';
+    const API_BASE_URL = 'https://let-s-pay-server.vercel.app/api';
 
     // Helper function to clean table number - remove "Meja" prefix if it exists
     const cleanTableNumber = (tableNum) => {
@@ -798,7 +798,7 @@ function MenuPage() {
                                     return (
                                         <div key={item.id_menu} className="menu-item-card">
                                             <img 
-                                                src={`http://localhost:5000${item.image_url}`} 
+                                                src={`https://let-s-pay-server.vercel.app${item.image_url}`} 
                                                 onError={(e) => { 
                                                     e.target.onerror = null; 
                                                     e.target.src = 'https://placehold.co/150x150/CCCCCC/000000?text=No+Image'; 
