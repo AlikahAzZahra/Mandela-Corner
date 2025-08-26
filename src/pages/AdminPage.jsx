@@ -1776,8 +1776,8 @@ const AdminPage = () => {
                         
                         <div style={{ marginBottom: '10px' }}>
                             <strong>Backend Port:</strong><br/>
-                            {API_PORTS.map(({ url }) => (
-                                <label key={url} style={{ display: 'block', margin: '4px 0' }}>
+                            {API_PORTS.map(({ port, url }) => (
+                                <label key={port} style={{ display: 'block', margin: '4px 0' }}>
                                     <input
                                         type="radio"
                                         name="apiPort"
