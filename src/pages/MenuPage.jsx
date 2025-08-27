@@ -138,6 +138,28 @@ function MenuPage() {
         }
     }, []);
 
+    // PATCH: Kunci/unlock scroll body saat keranjang atau modal/popup terbuka
+    useEffect(() => {
+        const open =
+            isCartSidebarOpen ||
+            isPaymentMethodModalOpen ||
+            showOrderSuccessPopup ||
+            showPaymentSuccessPopup;
+
+        // toggle class (kalau CSS menambahkan body.cart-open { overflow:hidden; })
+        document.body.classList.toggle('cart-open', open);
+
+        // hard-lock juga via style supaya aman walau CSS belum ditambah
+        const prevOverflow = document.body.style.overflow;
+        if (open) document.body.style.overflow = 'hidden';
+        else document.body.style.overflow = prevOverflow || '';
+
+        return () => {
+            document.body.classList.remove('cart-open');
+            document.body.style.overflow = '';
+        };
+    }, [isCartSidebarOpen, isPaymentMethodModalOpen, showOrderSuccessPopup, showPaymentSuccessPopup]);
+
     // Fungsi untuk menangani perubahan opsi (pedas/dingin)
     const handleOptionChange = (itemId, optionType, value) => {
         setItemSelections(prevSelections => ({
@@ -637,8 +659,8 @@ function MenuPage() {
                             console.error('🔍 CHECKING ITEMS ARRAY:');
                             orderPayload.items.forEach((item, index) => {
                                 console.error(`Item ${index}:`, JSON.stringify(item, null, 2));
-                                Object.entries(item).forEach(([key, value]) => {
-                                    console.error(`  - ${key}:`, value, `(${typeof value})`);
+                                Object.entries(item).forEach(([k, v]) => {
+                                    console.error(`  - ${k}:`, v, `(${typeof v})`);
                                 });
                             });
                         }
@@ -678,13 +700,14 @@ function MenuPage() {
         setIsPaymentMethodModalOpen(false);
     };
     
-    // FUNGSI HANDLEPLACEORDERCLICK
+    // PATCH: FUNGSI HANDLEPLACEORDERCLICK — tutup keranjang dulu baru buka modal
     const handlePlaceOrderClick = () => {
         if (getTotalItemsInCart() === 0) {
             alert('Keranjang belanja kosong! Silakan pilih item terlebih dahulu.');
             return;
         }
-        setIsPaymentMethodModalOpen(true);
+        setIsCartSidebarOpen(false);          // <<— tutup keranjang
+        setIsPaymentMethodModalOpen(true);    // <<— buka modal metode pembayaran
     };
 
     // Handler untuk close popup bayar di kasir (popup lama)
@@ -900,7 +923,11 @@ function MenuPage() {
             </div>
 
             {/* Sidebar untuk keranjang */}
-            <div className={`cart-sidebar ${isCartSidebarOpen ? 'open' : ''}`}>
+            <div
+                className={`cart-sidebar ${isCartSidebarOpen ? 'open' : ''}`}
+                // PATCH: tempelkan di bawah navbar (70px) dan penuhi sisa tinggi viewport
+                style={{ top: '70px', height: 'calc(100vh - 70px)' }}
+            >
                 <div className="cart-sidebar-header">
                     <h3>Keranjang Anda ({getTotalItemsInCart()})</h3>
                     <button onClick={closeCartSidebar} className="close-sidebar-button">&times;</button>
