@@ -417,206 +417,69 @@ const AdminPage = () => {
     // ===================================
     // DATA FETCHING FUNCTIONS - IMPROVED FOR PAYMENT SYNC
     // ===================================
-// Optimized fetchOrders function with better error handling and performance
-const fetchOrders = async (forceRefresh = false) => {
-    if (!token) {
-        console.log('No token for fetchOrders');
-        return;
-    }
+    const fetchOrders = async (forceRefresh = false) => {
+        if (!token) {
+            console.log('No token for fetchOrders');
+            return;
+        }
 
-    // Cancel previous request if still running
-    try { 
-        ordersAbortRef.current?.abort(); 
-    } catch {}
-    ordersAbortRef.current = new AbortController();
+        // Batalkan request sebelumnya jika masih jalan
+        try { ordersAbortRef.current?.abort(); } catch {}
+        ordersAbortRef.current = new AbortController();
 
-    // Prevent multiple simultaneous requests
-    if (ordersInFlightRef.current && !forceRefresh) {
-        console.log('Skip fetchOrders: request already in progress');
-        return;
-    }
-    ordersInFlightRef.current = true;
+        if (ordersInFlightRef.current) {
+            console.log('Skip fetchOrders: in-flight');
+            return;
+        }
+        ordersInFlightRef.current = true;
 
-    try {
-        // Add cache busting only when needed
-        const timestamp = forceRefresh ? `?t=${Date.now()}` : '';
-        console.log('📦 Fetching orders...', forceRefresh ? '(forced refresh)' : '(cached OK)');
+        try {
+            const timestamp = forceRefresh ? `?t=${Date.now()}` : '';
+            console.log('📦 Fetching orders with timestamp:', timestamp);
 
-        const controller = ordersAbortRef.current;
-        
-        // Set shorter timeout for better user experience
-        const timeoutId = setTimeout(() => {
-            controller.abort();
-            console.log('⏰ Request timeout after 15 seconds');
-        }, 15000); // 15 detik timeout
-
-        const response = await fetch(`${apiBaseUrl}/orders${timestamp}`, {
+            const response = await fetch(`${apiBaseUrl}/orders${timestamp}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json',
-                'Cache-Control': forceRefresh ? 'no-cache, no-store, must-revalidate' : 'public, max-age=30',
-                'Pragma': forceRefresh ? 'no-cache' : '',
-                'Expires': forceRefresh ? '0' : ''
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
             },
-            signal: controller.signal
-        });
+            signal: ordersAbortRef.current.signal,
+            });
 
-        // Clear timeout since request completed
-        clearTimeout(timeoutId);
-
-        console.log('📡 Orders response status:', response.status);
-
-        if (!response.ok) {
+            if (!response.ok) {
             if (response.status === 401 || response.status === 403) {
-                console.error('❌ Authentication failed during fetch orders');
-                throw new Error('Session expired. Please login again.');
+                console.error('Auth failed during fetch orders');
+                handleLogout();
+                return;
             }
-            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('✅ Orders fetched:', Array.isArray(data) ? data.length : 0);
+            setOrders(Array.isArray(data) ? data : []);
+
+            if (Array.isArray(data) && data.length > 0) {
+            console.log('💰 Payment statuses:', data.map(o => ({
+                id: o.order_id, payment: o.payment_status, amount: o.total_amount
+            })));
+            }
+        } catch (error) {
+            // Jangan ganggu user kalau request memang dibatalkan
+            if (error.name === 'AbortError') {
+            console.log('fetchOrders aborted (newer request started)');
+            return;
+            }
+            console.error('Error fetching orders:', error);
+            setOrders([]);
+            if (!String(error.message).includes('Auth failed')) {
+            alert(`Gagal mengambil pesanan: ${error.message}`);
+            }
+        } finally {
+            ordersInFlightRef.current = false;
         }
-
-        const data = await response.json();
-        console.log('✅ Orders fetched successfully:', Array.isArray(data) ? data.length : 0, 'orders');
-        
-        // Validate and set data
-        const ordersArray = Array.isArray(data) ? data : [];
-        setOrders(ordersArray);
-
-        // Log payment status for debugging (only first 3 orders)
-        if (ordersArray.length > 0) {
-            console.log('💰 Recent payment statuses:', 
-                ordersArray.slice(0, 3).map(o => ({
-                    id: o.order_id, 
-                    payment: o.payment_status, 
-                    order: o.order_status,
-                    amount: o.total_amount
-                }))
-            );
-        }
-
-    } catch (error) {
-        // Handle different types of errors appropriately
-        if (error.name === 'AbortError') {
-            console.log('🚫 Orders fetch request was cancelled (newer request started)');
-            return; // Don't show error to user for cancelled requests
-        }
-        
-        console.error('❌ Error fetching orders:', error);
-        
-        // Don't clear orders on network errors to prevent UI flickering
-        if (error.message.includes('Failed to fetch')) {
-            console.log('🌐 Network error - keeping existing orders data');
-            // Show user-friendly message without clearing existing data
-            if (forceRefresh) {
-                alert('Gagal refresh data - periksa koneksi internet');
-            }
-        } else if (error.message.includes('Session expired')) {
-            console.log('🔐 Session expired - logging out');
-            alert('Session telah berakhir. Silakan login kembali.');
-            handleLogout();
-            setOrders([]); // Clear orders on auth failure
-        } else {
-            console.log('⚠️ Other error - keeping existing data');
-            // Don't clear orders to prevent UI flickering
-            if (forceRefresh) {
-                alert(`Gagal mengambil pesanan: ${error.message}`);
-            }
-        }
-    } finally {
-        ordersInFlightRef.current = false;
-    }
-};
-
-// Also optimize the useEffect for better polling
-// Replace the existing useEffect with this optimized version:
-useEffect(() => {
-    console.log('🔄 AdminPage mounted, token state:', !!token);
-    console.log('👤 UserRole state:', userRole);
-    
-    if (token) {
-        console.log('✅ Token exists, fetching initial data...');
-        
-        // Initial data fetch
-        fetchOrders(true);
-        fetchMenuItems();
-        fetchTables();
-        
-        // Smart polling configuration
-        const BASE_POLL_INTERVAL = 15000; // 15 seconds base
-        const FOCUSED_POLL_INTERVAL = 10000; // 10 seconds when focused
-        const BACKGROUND_POLL_INTERVAL = 30000; // 30 seconds when background
-        
-        let currentInterval = BASE_POLL_INTERVAL;
-        let intervalId;
-
-        const startPolling = () => {
-            if (intervalId) {
-                clearInterval(intervalId);
-            }
-            
-            intervalId = setInterval(() => {
-                // Only poll if component is still mounted and token exists
-                if (token) {
-                    // Use cache-friendly polling for better performance
-                    fetchOrders(false); // false = allow cache
-                }
-            }, currentInterval);
-            
-            console.log(`📱 Polling started with ${currentInterval}ms interval`);
         };
-
-        // Adjust polling speed based on page visibility
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-                // Slower polling when tab is not visible
-                currentInterval = BACKGROUND_POLL_INTERVAL;
-                console.log('📱 Tab hidden - reducing poll frequency to 30s');
-            } else {
-                // Faster polling when tab is active
-                currentInterval = FOCUSED_POLL_INTERVAL;
-                console.log('📱 Tab focused - increasing poll frequency to 10s');
-                // Force refresh when coming back to tab for immediate update
-                fetchOrders(true);
-            }
-            
-            startPolling(); // Restart with new interval
-        };
-
-        // Listen for visibility changes
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        
-        // Start initial polling
-        startPolling();
-
-        // Also poll when window gains focus (for better responsiveness)
-        const handleWindowFocus = () => {
-            console.log('👁️ Window focused - triggering refresh');
-            fetchOrders(true);
-        };
-        
-        window.addEventListener('focus', handleWindowFocus);
-
-        return () => {
-            console.log('🧹 Cleaning up AdminPage...');
-            
-            // Clear polling
-            if (intervalId) {
-                clearInterval(intervalId);
-            }
-            
-            // Remove event listeners
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('focus', handleWindowFocus);
-            
-            // Cancel any pending requests
-            try { 
-                ordersAbortRef.current?.abort(); 
-            } catch {}
-        };
-
-    } else {
-        console.log('🚫 No token, staying on login page');
-    }
-}, [token]);
 
 
     const fetchMenuItems = async () => {
@@ -719,7 +582,6 @@ useEffect(() => {
         }
     };
 
-    // Fixed handleAddOrUpdateMenu function
     const handleAddOrUpdateMenu = async () => {
         try {
             if (!newMenu.name.trim() || !newMenu.price || !newMenu.category) {
@@ -727,217 +589,118 @@ useEffect(() => {
                 return;
             }
 
-            console.log('📝 Starting menu upload...');
-            console.log('Menu data:', {
-                name: newMenu.name,
-                price: newMenu.price,
-                category: newMenu.category,
-                hasImage: !!newMenu.imageFile
-            });
+            const formData = new FormData();
+            formData.append('name', newMenu.name.trim());
+            formData.append('description', newMenu.description.trim());
+            formData.append('price', newMenu.price);
+            formData.append('category', newMenu.category);
+            formData.append('is_available', newMenu.is_available === 0 ? 0 : 1);
 
-            // Convert image to base64 if exists
-            let imageBase64 = null;
-            let imageType = null;
-            
             if (newMenu.imageFile) {
-                try {
-                    // Validate file size (max 5MB)
-                    if (newMenu.imageFile.size > 5 * 1024 * 1024) {
-                        alert('Ukuran file gambar terlalu besar! Maksimal 5MB.');
-                        return;
-                    }
-                    
-                    // Validate file type
-                    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-                    if (!validTypes.includes(newMenu.imageFile.type)) {
-                        alert('Format file tidak didukung! Gunakan JPG, PNG, atau WebP.');
-                        return;
-                    }
-                    
-                    imageBase64 = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            // Remove data URL prefix (data:image/jpeg;base64,)
-                            const base64 = reader.result.split(',')[1];
-                            resolve(base64);
-                        };
-                        reader.onerror = reject;
-                        reader.readAsDataURL(newMenu.imageFile);
-                    });
-                    
-                    imageType = newMenu.imageFile.type;
-                    console.log('✅ Image converted to base64, size:', imageBase64.length);
-                } catch (error) {
-                    console.error('Error converting image:', error);
-                    alert('Gagal memproses gambar. Coba lagi.');
-                    return;
-                }
-            }
-
-            // Prepare JSON payload instead of FormData
-            const payload = {
-                name: newMenu.name.trim(),
-                description: newMenu.description.trim(),
-                price: parseFloat(newMenu.price),
-                category: newMenu.category,
-                is_available: newMenu.is_available === 0 ? 0 : 1
-            };
-
-            // Add image data if exists
-            if (imageBase64) {
-                payload.image_base64 = imageBase64;
-                payload.image_type = imageType;
+                formData.append('image', newMenu.imageFile);
             } else if (editingMenu && editingMenu.image_url) {
-                payload.image_url_existing = editingMenu.image_url;
+                formData.append('image_url_existing', editingMenu.image_url);
             }
-
-            console.log('🚀 Sending payload to server...');
 
             let response;
-            const requestOptions = {
-                method: editingMenu && editingMenu.id_menu ? 'PUT' : 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify(payload)
-            };
-
-            const endpoint = editingMenu && editingMenu.id_menu 
-                ? `${apiBaseUrl}/menu/${editingMenu.id_menu}` 
-                : `${apiBaseUrl}/menu`;
-
-            console.log('📡 Request details:', {
-                method: requestOptions.method,
-                endpoint: endpoint,
-                hasAuth: !!token
-            });
-
-            response = await fetch(endpoint, requestOptions);
-
-            console.log('📡 Server response status:', response.status);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Server error response:', errorText);
-                
-                let errorMessage;
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.message || errorData.error || `HTTP ${response.status}`;
-                } catch {
-                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                }
-                
-                throw new Error(errorMessage);
+            if (editingMenu && editingMenu.id_menu) {
+                response = await fetch(`${apiBaseUrl}/menu/${editingMenu.id_menu}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+            } else {
+                response = await fetch(`${apiBaseUrl}/menu`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
             }
 
-            const result = await response.json();
-            console.log('✅ Menu saved successfully:', result);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
 
             alert(`Menu berhasil ${editingMenu ? 'diupdate' : 'ditambahkan'}!`);
-            
-            // Reset form
-            setNewMenu({ 
-                name: '', 
-                description: '', 
-                price: '', 
-                category: 'makanan-nasi', 
-                imageFile: null, 
-                imageUrlPreview: '' 
-            });
+            setNewMenu({ name: '', description: '', price: '', category: 'makanan-nasi', imageFile: null, imageUrlPreview: '' });
             
             // Reset file input
             const fileInput = document.getElementById('menuImageUpload');
             if (fileInput) fileInput.value = '';
             
             setEditingMenu(null);
-            
-            // Refresh menu list
-            await fetchMenuItems();
+            fetchMenuItems();
             setActiveMenuSubTab('menu-list');
             
         } catch (error) {
-            console.error('❌ Error saving menu:', error);
-            
-            let userMessage = 'Gagal menyimpan menu';
-            
-            if (error.message.includes('Failed to fetch')) {
-                userMessage += ': Tidak dapat terhubung ke server';
-            } else if (error.message.includes('413')) {
-                userMessage += ': File gambar terlalu besar';
-            } else if (error.message.includes('400')) {
-                userMessage += ': Data tidak valid';
-            } else {
-                userMessage += ': ' + error.message;
-            }
-            
-            alert(userMessage);
+            console.error('Error saving menu:', error);
+            alert(`Gagal ${editingMenu ? 'mengupdate' : 'menambahkan'} menu: ${error.message}`);
         }
-    };;
+    };
 
-        const handleEditMenuClick = (item) => {
-            try {
-                if (!item || !item.id_menu) {
-                    console.error('Invalid item for edit:', item);
-                    return;
-                }
-                
-                setEditingMenu(item);
-                setNewMenu({
-                    name: item.name || '',
-                    description: item.description || '',
-                    price: item.price || '',
-                    category: item.category || 'makanan-nasi',
-                    imageFile: null,
-                    imageUrlPreview: item.image_url ? `https://let-s-pay-server.vercel.app${item.image_url}` : ''
-                });
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                setActiveMenuSubTab('menu-form');
-            } catch (error) {
-                console.error('Error setting up menu edit:', error);
-            }
-        };
-
-        const handleCancelEdit = () => {
-            try {
-                setEditingMenu(null);
-                setNewMenu({ name: '', description: '', price: '', category: 'makanan-nasi', imageFile: null, imageUrlPreview: '' });
-                const fileInput = document.getElementById('menuImageUpload');
-                if (fileInput) fileInput.value = '';
-                setActiveMenuSubTab('menu-list');
-            } catch (error) {
-                console.error('Error canceling edit:', error);
-            }
-        };
-
-        const handleDeleteMenu = async (id_menu) => {
-            if (!id_menu) {
-                console.error('Invalid menu ID for delete:', id_menu);
+    const handleEditMenuClick = (item) => {
+        try {
+            if (!item || !item.id_menu) {
+                console.error('Invalid item for edit:', item);
                 return;
             }
             
-            if (!window.confirm('Apakah Anda yakin ingin menghapus menu ini?')) return;
+            setEditingMenu(item);
+            setNewMenu({
+                name: item.name || '',
+                description: item.description || '',
+                price: item.price || '',
+                category: item.category || 'makanan-nasi',
+                imageFile: null,
+                imageUrlPreview: item.image_url ? `https://let-s-pay-server.vercel.app${item.image_url}` : ''
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setActiveMenuSubTab('menu-form');
+        } catch (error) {
+            console.error('Error setting up menu edit:', error);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        try {
+            setEditingMenu(null);
+            setNewMenu({ name: '', description: '', price: '', category: 'makanan-nasi', imageFile: null, imageUrlPreview: '' });
+            const fileInput = document.getElementById('menuImageUpload');
+            if (fileInput) fileInput.value = '';
+            setActiveMenuSubTab('menu-list');
+        } catch (error) {
+            console.error('Error canceling edit:', error);
+        }
+    };
+
+    const handleDeleteMenu = async (id_menu) => {
+        if (!id_menu) {
+            console.error('Invalid menu ID for delete:', id_menu);
+            return;
+        }
+        
+        if (!window.confirm('Apakah Anda yakin ingin menghapus menu ini?')) return;
+        
+        try {
+            const response = await fetch(`${apiBaseUrl}/menu/${id_menu}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             
-            try {
-                const response = await fetch(`${apiBaseUrl}/menu/${id_menu}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                alert('Menu berhasil dihapus!');
-                fetchMenuItems();
-                
-            } catch (error) {
-                console.error('Error deleting menu:', error);
-                alert(`Gagal menghapus menu: ${error.message}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
             }
-        };
+            
+            alert('Menu berhasil dihapus!');
+            fetchMenuItems();
+            
+        } catch (error) {
+            console.error('Error deleting menu:', error);
+            alert(`Gagal menghapus menu: ${error.message}`);
+        }
+    };
 
     const handleToggleMenuAvailability = async (item) => {
         try {
