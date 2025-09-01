@@ -417,69 +417,69 @@ const AdminPage = () => {
     // ===================================
     // DATA FETCHING FUNCTIONS - IMPROVED FOR PAYMENT SYNC
     // ===================================
-    const fetchOrders = async (forceRefresh = false) => {
-        if (!token) {
-            console.log('No token for fetchOrders');
-            return;
-        }
+const fetchOrders = async (forceRefresh = false) => {
+  if (!token) {
+    console.log('No token for fetchOrders');
+    return;
+  }
 
-        // Batalkan request sebelumnya jika masih jalan
-        try { ordersAbortRef.current?.abort(); } catch {}
-        ordersAbortRef.current = new AbortController();
+  // Batalkan request sebelumnya jika masih jalan
+  try { ordersAbortRef.current?.abort(); } catch {}
+  ordersAbortRef.current = new AbortController();
 
-        if (ordersInFlightRef.current) {
-            console.log('Skip fetchOrders: in-flight');
-            return;
-        }
-        ordersInFlightRef.current = true;
+  if (ordersInFlightRef.current) {
+    console.log('Skip fetchOrders: in-flight');
+    return;
+  }
+  ordersInFlightRef.current = true;
 
-        try {
-            const timestamp = forceRefresh ? `?t=${Date.now()}` : '';
-            console.log('📦 Fetching orders with timestamp:', timestamp);
+  try {
+    const timestamp = forceRefresh ? `?t=${Date.now()}` : '';
+    console.log('📦 Fetching orders with timestamp:', timestamp);
 
-            const response = await fetch(`${apiBaseUrl}/orders${timestamp}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            },
-            signal: ordersAbortRef.current.signal,
-            });
+    const response = await fetch(`${apiBaseUrl}/orders${timestamp}`, {
+      method: 'GET',
+      cache: 'no-store',          // anti-cache tanpa header ekstra
+      headers: {
+        'Accept': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      signal: ordersAbortRef.current.signal,
+    });
 
-            if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                console.error('Auth failed during fetch orders');
-                handleLogout();
-                return;
-            }
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        console.error('Auth failed during fetch orders');
+        handleLogout();
+        return;
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
 
-            const data = await response.json();
-            console.log('✅ Orders fetched:', Array.isArray(data) ? data.length : 0);
-            setOrders(Array.isArray(data) ? data : []);
+    const data = await response.json();
+    console.log('✅ Orders fetched:', Array.isArray(data) ? data.length : 0);
+    setOrders(Array.isArray(data) ? data : []);
 
-            if (Array.isArray(data) && data.length > 0) {
-            console.log('💰 Payment statuses:', data.map(o => ({
-                id: o.order_id, payment: o.payment_status, amount: o.total_amount
-            })));
-            }
-        } catch (error) {
-            // Jangan ganggu user kalau request memang dibatalkan
-            if (error.name === 'AbortError') {
-            console.log('fetchOrders aborted (newer request started)');
-            return;
-            }
-            console.error('Error fetching orders:', error);
-            setOrders([]);
-            if (!String(error.message).includes('Auth failed')) {
-            alert(`Gagal mengambil pesanan: ${error.message}`);
-            }
-        } finally {
-            ordersInFlightRef.current = false;
-        }
-        };
+    if (Array.isArray(data) && data.length > 0) {
+      console.log('💰 Payment statuses:', data.map(o => ({
+        id: o.order_id, payment: o.payment_status, amount: o.total_amount
+      })));
+    }
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('fetchOrders aborted (newer request started)');
+      return;
+    }
+    console.error('Error fetching orders:', error);
+    setOrders([]);
+    if (!String(error.message).includes('Auth failed')) {
+      alert(`Gagal mengambil pesanan: ${error.message}`);
+    }
+  } finally {
+    ordersInFlightRef.current = false;
+  }
+};
+
 
 
     const fetchMenuItems = async () => {
@@ -584,7 +584,9 @@ const AdminPage = () => {
 
 const handleAddOrUpdateMenu = async () => {
   try {
-    if (!newMenu.name.trim() || !newMenu.price || !newMenu.category) {
+    // sanitasi harga: ambil hanya digit (mendukung input "10.000" / "10,000")
+    const numericPrice = Number(String(newMenu.price).replace(/[^\d]/g, ''));
+    if (!newMenu.name.trim() || !numericPrice || !newMenu.category) {
       alert('Nama, harga, dan kategori menu tidak boleh kosong!');
       return;
     }
@@ -592,19 +594,20 @@ const handleAddOrUpdateMenu = async () => {
     const payload = {
       name: newMenu.name.trim(),
       description: (newMenu.description || '').trim(),
-      // kirim sebagai number (backend parseFloat oke)
-      price: Number(newMenu.price),
+      price: numericPrice,                         // ← harga sudah bersih (angka)
       category: newMenu.category,
       is_available: newMenu.is_available === 0 ? 0 : 1,
-      // kirim link gambar (Google Drive/URL langsung)
-      image_link: (newMenu.imageUrlPreview || '').trim() || null
+      // jika kamu punya URL gambar (bukan dataURL), kirimkan sebagai image_url
+      ...(newMenu.imageUrlPreview && /^https?:\/\//i.test(newMenu.imageUrlPreview)
+        ? { image_url: newMenu.imageUrlPreview.trim() }
+        : {})
     };
 
-    const url = editingMenu && editingMenu.id_menu
+    const url = (editingMenu && editingMenu.id_menu)
       ? `${apiBaseUrl}/menu/${editingMenu.id_menu}`
       : `${apiBaseUrl}/menu`;
 
-    const method = editingMenu && editingMenu.id_menu ? 'PUT' : 'POST';
+    const method = (editingMenu && editingMenu.id_menu) ? 'PUT' : 'POST';
 
     const response = await fetch(`${url}?t=${Date.now()}`, {
       method,
@@ -612,10 +615,7 @@ const handleAddOrUpdateMenu = async () => {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Accept': 'application/json'
       },
       body: JSON.stringify(payload)
     });
@@ -627,15 +627,22 @@ const handleAddOrUpdateMenu = async () => {
 
     alert(`Menu berhasil ${editingMenu ? 'diupdate' : 'ditambahkan'}!`);
 
-    setNewMenu({ name: '', description: '', price: '', category: 'makanan-nasi', imageFile: null, imageUrlPreview: '' });
+    setNewMenu({
+      name: '',
+      description: '',
+      price: '',
+      category: 'makanan-nasi',
+      imageFile: null,
+      imageUrlPreview: ''
+    });
     setEditingMenu(null);
 
-    // refresh daftar menu anti-cache
-    await fetchMenuItems();
+    await fetchMenuItems(); // refresh daftar menu
   } catch (error) {
     alert(`Gagal ${editingMenu ? 'mengupdate' : 'menambahkan'} menu: ${error.message}`);
   }
 };
+
 
 
     const handleEditMenuClick = (item) => {
