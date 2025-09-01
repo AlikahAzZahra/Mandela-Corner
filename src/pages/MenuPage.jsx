@@ -918,14 +918,14 @@ function MenuPage() {
                                                 <button
                                                     onClick={() => removeFromCart({ id_menu: item.id_menu, options: currentOptions })}
                                                     disabled={currentQuantityInCart === 0}
-                                                    className="quantity-button remove"
+                                                    className="quantity-buttons removees"
                                                 >
                                                     -
                                                 </button>
                                                 <span className="quantity-display">{currentQuantityInCart}</span>
                                                 <button
                                                     onClick={() => addToCart(item)}
-                                                    className="quantity-button add"
+                                                    className="quantity-buttons add"
                                                 >
                                                     +
                                                 </button>
