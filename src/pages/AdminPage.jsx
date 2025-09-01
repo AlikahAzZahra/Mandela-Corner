@@ -1,4 +1,4 @@
-// client/src/pages/AdminPage.jsx - REVISED (image by link + faster orders list)
+// client/src/pages/AdminPage.jsx - REVISED (create menu made obvious + image by link + faster orders list)
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import '../styles/AdminPage.css';
@@ -90,15 +90,15 @@ const AdminPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
-  // ⬇️ NEW: gunakan link, bukan file
+  // ⬇️ Link gambar (bukan upload file)
   const [newMenu, setNewMenu] = useState({
     name: '',
     description: '',
     price: '',
     category: 'makanan-nasi',
     is_available: 1,
-    imageLink: '',           // ganti dari imageFile/imageUrlPreview
-    keepExistingImage: true, // saat edit: tetap pakai gambar lama jika tidak diubah
+    imageLink: '',
+    keepExistingImage: true,
   });
   const [editingMenu, setEditingMenu] = useState(null);
 
@@ -152,6 +152,22 @@ const AdminPage = () => {
     setActiveTab(tab);
     setActiveMenuSubTab('menu-list');
     setMobileMenuOpen(false);
+  };
+
+  // Quick action: buka form create
+  const gotoCreateMenu = () => {
+    setEditingMenu(null);
+    setNewMenu({
+      name: '',
+      description: '',
+      price: '',
+      category: 'makanan-nasi',
+      is_available: 1,
+      imageLink: '',
+      keepExistingImage: true,
+    });
+    setActiveMenuSubTab('menu-form');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // ============ CATEGORY ============
@@ -332,8 +348,6 @@ const AdminPage = () => {
   };
 
   // ============ MENU (ADMIN) ============
-  // ⛔ HAPUS: handleImageChange berbasis file — tidak diperlukan lagi
-  // GANTI dengan handler text input untuk link Google Drive
   const handleImageLinkChange = (e) => {
     const v = e.target.value;
     setNewMenu((prev) => ({ ...prev, imageLink: v, keepExistingImage: v.trim() === '' ? true : false }));
@@ -341,19 +355,15 @@ const AdminPage = () => {
 
   const handleAddOrUpdateMenu = async () => {
     try {
-      if (!newMenu.name.trim() || !newMenu.price || !newMenu.category) {
+      if (!newMenu.name.trim() || newMenu.price === '' || newMenu.category === '') {
         alert('Nama, harga, dan kategori menu tidak boleh kosong!');
         return;
       }
 
-      // Backend sekarang menerima JSON: { name, ..., image_link } untuk POST,
-      // dan untuk PUT bisa kirim { image_url_existing, image_link, clear_image }
-      // (lihat index.js). :contentReference[oaicite:2]{index=2}
-
       const payloadBase = {
         name: newMenu.name.trim(),
         description: (newMenu.description || '').trim(),
-        price: newMenu.price,
+        price: Number(newMenu.price), // pastikan number
         category: newMenu.category,
         is_available: newMenu.is_available ? 1 : 0,
       };
@@ -412,10 +422,10 @@ const AdminPage = () => {
     setNewMenu({
       name: item.name || '',
       description: item.description || '',
-      price: item.price || '',
+      price: item.price ?? '',
       category: item.category || 'makanan-nasi',
       is_available: (item.is_available === 1 || item.is_available === true || item.is_available === '1') ? 1 : 0,
-      imageLink: item.image_url || '', // tampilkan link lama agar bisa diubah
+      imageLink: item.image_url || '',
       keepExistingImage: !!item.image_url,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -897,11 +907,8 @@ const AdminPage = () => {
 
   // ============ PERFORMANCE BOOST: pagination daftar pesanan ============
   const [orderPage, setOrderPage] = useState(1);
-  const [orderPageSize, setOrderPageSize] = useState(12); // default 12 kartu per halaman
-  useEffect(() => {
-    // reset ke halaman 1 setiap orders berubah
-    setOrderPage(1);
-  }, [orders]);
+  const [orderPageSize, setOrderPageSize] = useState(12);
+  useEffect(() => { setOrderPage(1); }, [orders]);
   const totalOrderPages = Math.max(1, Math.ceil((orders?.length || 0) / orderPageSize));
   const pagedOrders = useMemo(() => {
     const start = (orderPage - 1) * orderPageSize;
@@ -945,8 +952,6 @@ const AdminPage = () => {
           <button onClick={handleLogin} className="login-button" disabled={isLoggingIn}>
             {isLoggingIn ? 'Logging in...' : 'Login'}
           </button>
-
-          {/* Debug simple */}
           <div style={{ marginTop: 12, fontSize: 12, color: '#666' }}>
             Current API URL: <b>{apiBaseUrl}</b>
           </div>
@@ -1082,12 +1087,18 @@ const AdminPage = () => {
         {/* Manajemen Menu */}
         {activeTab === 'manajemen-menu' && (
           <div className="admin-section-box">
-            <h2 className="admin-section-title">Manajemen Menu</h2>
+            <div className="menu-header-row">
+              <h2 className="admin-section-title">Manajemen Menu</h2>
+              {/* CTA selalu terlihat */}
+              <button className="primary-cta" onClick={gotoCreateMenu}>+ Tambah Menu Baru</button>
+            </div>
 
-            {/* Subtab */}
+            {/* Subtab (tetap ada) */}
             <div className="menu-subtabs">
               <button className={activeMenuSubTab === 'menu-list' ? 'active' : ''} onClick={() => setActiveMenuSubTab('menu-list')}>Daftar Menu</button>
-              <button className={activeMenuSubTab === 'menu-form' ? 'active' : ''} onClick={() => setActiveMenuSubTab('menu-form')}>{editingMenu ? 'Edit Menu' : 'Tambah Menu'}</button>
+              <button className={activeMenuSubTab === 'menu-form' ? 'active' : ''} onClick={() => setActiveMenuSubTab('menu-form')}>
+                {editingMenu ? 'Edit Menu' : 'Tambah Menu'}
+              </button>
             </div>
 
             {/* Form tambah/edit menu */}
@@ -1129,7 +1140,7 @@ const AdminPage = () => {
                     </select>
                   </div>
 
-                  {/* ⬇️ Penggantian input gambar: pakai LINK (Google Drive) */}
+                  {/* Link gambar Google/URL */}
                   <div className="menu-form-field">
                     <label>Link Gambar (Google Drive/URL)</label>
                     <input
@@ -1138,7 +1149,7 @@ const AdminPage = () => {
                       placeholder="Tempel link Google Drive (sharing) atau URL gambar langsung"
                     />
                     <small className="hint">
-                      Masukkan link Google Drive / URL gambar. Sistem akan otomatis mengubah link Google Drive menjadi direct URL di backend.
+                      Masukkan link Google Drive / URL gambar. Backend akan mengubah link Drive menjadi direct URL jika perlu.
                     </small>
                     {newMenu.imageLink?.trim() ? (
                       <div className="image-preview">
@@ -1172,32 +1183,43 @@ const AdminPage = () => {
 
             {/* Daftar menu */}
             {activeMenuSubTab === 'menu-list' && (
-              <div className="menu-list-grid">
-                {(menuItems || []).map((item) => (
-                  <div key={item.id_menu} className="menu-card">
-                    <div className="menu-card-thumb">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.name} />
-                      ) : (
-                        <div className="no-image">No Image</div>
-                      )}
-                    </div>
-                    <div className="menu-card-body">
-                      <div className="menu-card-title">{item.name}</div>
-                      <div className="menu-card-price">Rp {formatPrice(item.price)}</div>
-                      <div className="menu-card-meta">
-                        <span className="chip">{getCategoryDisplayName(item.category || 'lain-lain')}</span>
-                        <span className={`chip ${item.is_available ? 'ok' : 'no'}`}>{item.is_available ? 'Tersedia' : 'Tidak'}</span>
+              <>
+                <div className="menu-actions-row">
+                  <button className="primary-cta" onClick={gotoCreateMenu}>+ Tambah Menu Baru</button>
+                </div>
+                <div className="menu-list-grid">
+                  {(menuItems || []).map((item) => (
+                    <div key={item.id_menu} className="menu-card">
+                      <div className="menu-card-thumb">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.name} />
+                        ) : (
+                          <div className="no-image">No Image</div>
+                        )}
+                      </div>
+                      <div className="menu-card-body">
+                        <div className="menu-card-title">{item.name}</div>
+                        <div className="menu-card-price">Rp {formatPrice(item.price)}</div>
+                        <div className="menu-card-meta">
+                          <span className="chip">{getCategoryDisplayName(item.category || 'lain-lain')}</span>
+                          <span className={`chip ${item.is_available ? 'ok' : 'no'}`}>{item.is_available ? 'Tersedia' : 'Tidak'}</span>
+                        </div>
+                      </div>
+                      <div className="menu-card-actions">
+                        <button onClick={() => handleEditMenuClick(item)} className="menu-btn">Edit</button>
+                        <button onClick={() => handleToggleMenuAvailability(item)} className="menu-btn">{item.is_available ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                        <button onClick={() => handleDeleteMenu(item.id_menu)} className="menu-btn danger">Hapus</button>
                       </div>
                     </div>
-                    <div className="menu-card-actions">
-                      <button onClick={() => handleEditMenuClick(item)} className="menu-btn">Edit</button>
-                      <button onClick={() => handleToggleMenuAvailability(item)} className="menu-btn">{item.is_available ? 'Nonaktifkan' : 'Aktifkan'}</button>
-                      <button onClick={() => handleDeleteMenu(item.id_menu)} className="menu-btn danger">Hapus</button>
-                    </div>
+                  ))}
+                </div>
+                {(menuItems || []).length === 0 && (
+                  <div className="empty-state">
+                    <p>Belum ada menu.</p>
+                    <button className="primary-cta" onClick={gotoCreateMenu}>+ Tambah Menu Pertama</button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1259,7 +1281,6 @@ const AdminPage = () => {
               </button>
             </div>
 
-            {/* ringkas tampilan laporan */}
             <div className="report-summary">
               <div className="report-card"><div className="report-kv"><span>Total Penjualan</span><strong>Rp {formatPrice(reportData.totalSales || 0)}</strong></div></div>
               <div className="report-card"><div className="report-kv"><span>Total Pesanan</span><strong>{reportData.totalOrders || 0}</strong></div></div>
