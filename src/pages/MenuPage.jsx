@@ -821,7 +821,8 @@ function MenuPage() {
                                     return (
                                         <div key={item.id_menu} className="menu-item-card">
                                             <img 
-                                                src={`https://let-s-pay-server.vercel.app${item.image_url}`} 
+                                                /* ⬇️ REVISI: gunakan URL gambar langsung dari backend (tanpa prefix server) */
+                                                src={item.image_url ? item.image_url : 'https://placehold.co/150x150/CCCCCC/000000?text=No+Image'}
                                                 onError={(e) => { 
                                                     e.target.onerror = null; 
                                                     e.target.src = 'https://placehold.co/150x150/CCCCCC/000000?text=No+Image'; 
