@@ -122,7 +122,7 @@ function MenuPage() {
             setError(`Gagal memuat menu: ${err.message}`);
             setMenu([]); // Set empty array on error
         } finally {
-            setLoading(false);
+                       setLoading(false);
         }
     };
 
@@ -241,7 +241,8 @@ function MenuPage() {
                 return newCart;
             }
         });
-        setIsCartSidebarOpen(true);
+        // ❌ sebelumnya membuka sidebar otomatis
+        // setIsCartSidebarOpen(true); // ⬅️ DIHAPUS sesuai permintaan
     };
 
     const removeFromCart = (itemInCart) => {
@@ -265,6 +266,21 @@ function MenuPage() {
                 }
             }
             return prevCart;
+        });
+    };
+
+    // ✅ BARU: hapus total item ketika klik "×" di keranjang
+    const deleteFromCart = (itemInCart) => {
+        setCart(prevCart => {
+            const newCart = prevCart.filter(cartItem =>
+                !(
+                    cartItem.id_menu === itemInCart.id_menu &&
+                    (cartItem.options?.spiciness || '') === (itemInCart.options?.spiciness || '') &&
+                    (cartItem.options?.temperature || '') === (itemInCart.options?.temperature || '')
+                )
+            );
+            if (newCart.length === 0) setIsCartSidebarOpen(false);
+            return newCart;
         });
     };
 
@@ -941,7 +957,7 @@ function MenuPage() {
                             <div key={index} className="cart-item">
                                 {/* Remove button di kanan atas */}
                                 <button 
-                                    onClick={() => removeFromCart(item)} 
+                                    onClick={() => deleteFromCart(item)}  /* ⬅️ UBAH: hapus total item */
                                     className="remove-from-cart-button"
                                     title="Hapus item"
                                 >
@@ -1097,7 +1113,7 @@ function MenuPage() {
                             </>
                         )}
                         <button
-                            onClick={handleClosePaymentSuccessPopup}
+                            onClick={() => { setShowPaymentSuccessPopup(false); setPaymentSuccessData(null); }}
                             style={{
                                 padding: '12px 24px',
                                 fontSize: '1em',
