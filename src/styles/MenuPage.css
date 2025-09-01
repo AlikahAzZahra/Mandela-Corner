@@ -191,8 +191,10 @@ body.cart-open{ overflow: hidden; }   /* dikasih/dihapus dari JS */
 
 /* Ringkasan + Tombol Pesan */
 .cart-summary-total{
-  position: sticky; bottom: 56px;   /* ruang untuk tombol besar */
-  background:#f8f9fa; border-top:2px solid #28a745; padding: 14px 18px; text-align:center; z-index:2;
+  position: sticky; 
+  background:#f8f9fa; 
+  border-top:2px solid #28a745;  
+  text-align:center; z-index:2;
 }
 .cart-summary-total strong{ color:#28a745; font-size:1.15rem; }
 
