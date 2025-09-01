@@ -582,62 +582,61 @@ const AdminPage = () => {
         }
     };
 
-    const handleAddOrUpdateMenu = async () => {
-        try {
-            if (!newMenu.name.trim() || !newMenu.price || !newMenu.category) {
-                alert('Nama, harga, dan kategori menu tidak boleh kosong!');
-                return;
-            }
+const handleAddOrUpdateMenu = async () => {
+  try {
+    if (!newMenu.name.trim() || !newMenu.price || !newMenu.category) {
+      alert('Nama, harga, dan kategori menu tidak boleh kosong!');
+      return;
+    }
 
-            const formData = new FormData();
-            formData.append('name', newMenu.name.trim());
-            formData.append('description', newMenu.description.trim());
-            formData.append('price', newMenu.price);
-            formData.append('category', newMenu.category);
-            formData.append('is_available', newMenu.is_available === 0 ? 0 : 1);
-
-            if (newMenu.imageFile) {
-                formData.append('image', newMenu.imageFile);
-            } else if (editingMenu && editingMenu.image_url) {
-                formData.append('image_url_existing', editingMenu.image_url);
-            }
-
-            let response;
-            if (editingMenu && editingMenu.id_menu) {
-                response = await fetch(`${apiBaseUrl}/menu/${editingMenu.id_menu}`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-            } else {
-                response = await fetch(`${apiBaseUrl}/menu`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-            }
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            alert(`Menu berhasil ${editingMenu ? 'diupdate' : 'ditambahkan'}!`);
-            setNewMenu({ name: '', description: '', price: '', category: 'makanan-nasi', imageFile: null, imageUrlPreview: '' });
-            
-            // Reset file input
-            const fileInput = document.getElementById('menuImageUpload');
-            if (fileInput) fileInput.value = '';
-            
-            setEditingMenu(null);
-            fetchMenuItems();
-            setActiveMenuSubTab('menu-list');
-            
-        } catch (error) {
-            console.error('Error saving menu:', error);
-            alert(`Gagal ${editingMenu ? 'mengupdate' : 'menambahkan'} menu: ${error.message}`);
-        }
+    const payload = {
+      name: newMenu.name.trim(),
+      description: (newMenu.description || '').trim(),
+      // kirim sebagai number (backend parseFloat oke)
+      price: Number(newMenu.price),
+      category: newMenu.category,
+      is_available: newMenu.is_available === 0 ? 0 : 1,
+      // kirim link gambar (Google Drive/URL langsung)
+      image_link: (newMenu.imageUrlPreview || '').trim() || null
     };
+
+    const url = editingMenu && editingMenu.id_menu
+      ? `${apiBaseUrl}/menu/${editingMenu.id_menu}`
+      : `${apiBaseUrl}/menu`;
+
+    const method = editingMenu && editingMenu.id_menu ? 'PUT' : 'POST';
+
+    const response = await fetch(`${url}?t=${Date.now()}`, {
+      method,
+      cache: 'no-store',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    alert(`Menu berhasil ${editingMenu ? 'diupdate' : 'ditambahkan'}!`);
+
+    setNewMenu({ name: '', description: '', price: '', category: 'makanan-nasi', imageFile: null, imageUrlPreview: '' });
+    setEditingMenu(null);
+
+    // refresh daftar menu anti-cache
+    await fetchMenuItems();
+  } catch (error) {
+    alert(`Gagal ${editingMenu ? 'mengupdate' : 'menambahkan'} menu: ${error.message}`);
+  }
+};
+
 
     const handleEditMenuClick = (item) => {
         try {
@@ -653,7 +652,9 @@ const AdminPage = () => {
                 price: item.price || '',
                 category: item.category || 'makanan-nasi',
                 imageFile: null,
-                imageUrlPreview: item.image_url ? `https://let-s-pay-server.vercel.app${item.image_url}` : ''
+                // sekarang (pakai apa adanya, karena backend sekarang simpan full URL):
+                imageUrlPreview: item.image_url || ''
+
             });
             window.scrollTo({ top: 0, behavior: 'smooth' });
             setActiveMenuSubTab('menu-form');
