@@ -41,33 +41,80 @@ const formatOrderTime = (ts) => {
   return s;
 };
 
+// IMPROVED normalizeOrderItems function - ganti yang ada di AdminPage.jsx
 const normalizeOrderItems = (itemsField) => {
-  if (!itemsField) return [];
-  if (Array.isArray(itemsField)) return itemsField;
+  console.log('🔍 normalizeOrderItems called with:', {
+    type: typeof itemsField,
+    isArray: Array.isArray(itemsField),
+    value: itemsField
+  });
+  
+  if (!itemsField) {
+    console.log('⚠️ itemsField is null/undefined');
+    return [];
+  }
+  
+  if (Array.isArray(itemsField)) {
+    console.log('✅ itemsField is already an array:', itemsField.length, 'items');
+    return itemsField;
+  }
+  
   if (typeof itemsField === "string") {
     try {
-      const p = JSON.parse(itemsField);
-      return Array.isArray(p) ? p : [];
-    } catch {
+      console.log('🔄 Parsing string itemsField...');
+      const parsed = JSON.parse(itemsField);
+      
+      if (Array.isArray(parsed)) {
+        console.log('✅ Successfully parsed string to array:', parsed.length, 'items');
+        return parsed;
+      } else {
+        console.warn('⚠️ Parsed result is not an array:', typeof parsed);
+        return [];
+      }
+    } catch (error) {
+      console.error('❌ JSON parse error:', error.message);
+      console.log('Raw string that failed to parse:', itemsField.substring(0, 200) + '...');
       return [];
     }
   }
+  
+  console.warn('⚠️ Unexpected itemsField type:', typeof itemsField);
   return [];
 };
 
-const toUnifiedItem = (it) => ({
-  id_menu:
-    Number(
+// IMPROVED toUnifiedItem function - ganti yang ada di AdminPage.jsx  
+const toUnifiedItem = (it) => {
+  if (!it) {
+    console.warn('⚠️ toUnifiedItem called with null/undefined item');
+    return {
+      id_menu: 0,
+      name: "Unknown Item",
+      price: 0,
+      quantity: 0,
+      options: { spiciness: "", temperature: "" }
+    };
+  }
+
+  const unified = {
+    id_menu: Number(
       it?.id_menu ?? it?.menu_item_id ?? it?.menu_id ?? it?.menuId ?? 0
     ) || 0,
-  name: it?.menu_name ?? it?.name ?? "Unknown Item",
-  price: Number(it?.price_at_order ?? it?.price ?? 0),
-  quantity: Number(it?.quantity ?? 0),
-  options: {
-    spiciness: it?.spiciness_level ?? it?.spiciness ?? "",
-    temperature: it?.temperature_level ?? it?.temperature ?? "",
-  },
-});
+    name: it?.menu_name ?? it?.name ?? "Unknown Item",
+    price: Number(it?.price_at_order ?? it?.price ?? 0),
+    quantity: Number(it?.quantity ?? 0),
+    options: {
+      spiciness: it?.spiciness_level ?? it?.spiciness ?? "",
+      temperature: it?.temperature_level ?? it?.temperature ?? "",
+    },
+  };
+
+  console.log('🔄 Unified item:', {
+    original: it,
+    unified: unified
+  });
+
+  return unified;
+};
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -276,57 +323,140 @@ const AdminPage = () => {
     }
   };
 
-  const fetchOrders = async (force = false) => {
-    if (!token) return;
-    if (ordersInFlightRef.current) return;
+// FIXED fetchOrders function - ganti function yang ada di AdminPage.jsx
+const fetchOrders = async (force = false) => {
+  if (!token) {
+    console.log('⚠️ No token available for fetchOrders');
+    return;
+  }
+  
+  // Prevent multiple concurrent requests
+  if (ordersInFlightRef.current && !force) {
+    console.log('⚠️ Orders request already in flight, skipping...');
+    return;
+  }
 
-    ordersInFlightRef.current = true;
-    const controller = new AbortController();
-    ordersAbortRef.current = controller;
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
+  // Cancel previous request if exists
+  if (ordersAbortRef.current) {
     try {
-      const url = `${apiBaseUrl}/orders?t=${Date.now()}${force ? "&force=1" : ""}`;
-      const resp = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-        },
-        cache: "no-store",
-        signal: controller.signal,
-      });
-      if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
-          handleLogout();
-          return;
-        }
-        const txt = await resp.text();
-        let msg = txt || `HTTP ${resp.status}`;
-        try {
-          const j = JSON.parse(txt);
-          msg = j.message || msg;
-        } catch {}
-        throw new Error(msg);
-      }
-      const text = await resp.text();
-      let data = [];
-      try {
-        const parsed = JSON.parse(text);
-        data = Array.isArray(parsed) ? parsed : [];
-      } catch {
-        data = [];
-      }
-      setOrders(data);
-      setLastRefresh(new Date());
-    } catch (e) {
-      console.error("fetchOrders error:", e);
-    } finally {
-      clearTimeout(timeoutId);
-      ordersInFlightRef.current = false;
+      ordersAbortRef.current.abort('New request initiated');
+    } catch (err) {
+      console.log('Previous request already completed or aborted');
     }
-  };
+  }
+
+  ordersInFlightRef.current = true;
+  const controller = new AbortController();
+  ordersAbortRef.current = controller;
+  
+  // Increase timeout and add better error handling
+  const timeoutId = setTimeout(() => {
+    console.log('⏱️ Request timeout, aborting...');
+    controller.abort('Request timeout after 30 seconds');
+  }, 30000); // Increased to 30 seconds
+
+  try {
+    console.log(`🔄 Fetching orders... (force: ${force})`);
+    const url = `${apiBaseUrl}/orders?t=${Date.now()}${force ? "&force=1" : ""}`;
+    
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      },
+      signal: controller.signal,
+    });
+
+    console.log(`📡 Response status: ${resp.status}`);
+    
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        console.log('🔐 Authentication failed, logging out...');
+        handleLogout();
+        return;
+      }
+      
+      let errorMessage = `HTTP ${resp.status}`;
+      try {
+        const errorText = await resp.text();
+        if (errorText) {
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.message || errorText;
+          } catch {
+            errorMessage = errorText;
+          }
+        }
+      } catch (err) {
+        console.log('Could not read error response:', err);
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const responseText = await resp.text();
+    console.log(`📥 Response received, length: ${responseText.length} characters`);
+    
+    let data = [];
+    try {
+      const parsed = JSON.parse(responseText);
+      data = Array.isArray(parsed) ? parsed : [];
+      console.log(`✅ Parsed ${data.length} orders successfully`);
+      
+      // Debug: Log first order to check structure
+      if (data.length > 0) {
+        console.log('🔍 Sample order structure:', {
+          order_id: data[0].order_id,
+          items_type: typeof data[0].items,
+          items_length: data[0].items ? JSON.parse(data[0].items || '[]').length : 0,
+          has_items: !!data[0].items
+        });
+      }
+      
+    } catch (parseError) {
+      console.error('❌ JSON parse error:', parseError);
+      console.log('Raw response:', responseText.substring(0, 500) + '...');
+      data = [];
+    }
+
+    setOrders(data);
+    setLastRefresh(new Date());
+    console.log(`🎉 Orders updated successfully: ${data.length} orders`);
+    
+  } catch (error) {
+    console.error('❌ fetchOrders error:', error);
+    
+    // Handle different types of errors
+    if (error.name === 'AbortError') {
+      console.log('🔄 Request was aborted:', error.message || 'Unknown reason');
+      // Don't show error to user for aborted requests unless it's unexpected
+      if (!error.message?.includes('New request initiated') && !error.message?.includes('timeout')) {
+        console.warn('Unexpected abort:', error);
+      }
+    } else if (error.message?.includes('Failed to fetch')) {
+      console.error('🌐 Network error - server might be down');
+      // Optional: Show user-friendly message
+    } else {
+      console.error('💥 Unexpected error:', error.message);
+    }
+    
+  } finally {
+    clearTimeout(timeoutId);
+    ordersInFlightRef.current = false;
+    // Don't clear the abort controller reference immediately in case we need to check it
+    setTimeout(() => {
+      if (ordersAbortRef.current === controller) {
+        ordersAbortRef.current = null;
+      }
+    }, 1000);
+  }
+};
+
 
   const fetchMenuItems = async () => {
     if (!token) return;
@@ -701,85 +831,6 @@ const AdminPage = () => {
       alert(`Gagal update pembayaran: ${e.message}`);
       return Promise.reject(e);
     }
-  };
-
-  // ====== Edit order
-  const showEditOrder = (order) => {
-    if (!order?.items) {
-      alert("Data pesanan tidak valid");
-      return;
-    }
-    const existing = normalizeOrderItems(order.items)
-      .map(toUnifiedItem)
-      .filter((it) => it.id_menu > 0 && it.quantity > 0);
-
-    setEditOrderCart(existing);
-
-    const sel = {};
-    (menuItems || []).forEach((mi) => {
-      if (mi?.id_menu) sel[mi.id_menu] = { spiciness: "", temperature: "" };
-    });
-
-    normalizeOrderItems(order.items).forEach((raw) => {
-      const id =
-        Number(
-          raw?.id_menu ?? raw?.menu_item_id ?? raw?.menu_id ?? raw?.menuId
-        ) || 0;
-      if (id && sel[id]) {
-        sel[id] = {
-          spiciness: raw?.spiciness_level ?? raw?.spiciness ?? "",
-          temperature: raw?.temperature_level ?? raw?.temperature ?? "",
-        };
-      }
-    });
-
-    setEditOrderItemSelections(sel);
-    setEditOrderNote("");
-    setSelectedOrderForDetail(order);
-    setIsEditOrderModalOpen(true);
-  };
-
-  const closeEditOrder = () => {
-    setIsEditOrderModalOpen(false);
-    setSelectedOrderForDetail(null);
-    setEditOrderCart([]);
-    setEditOrderItemSelections({});
-    setEditOrderNote("");
-  };
-
-  const findEditOrderCartItem = (itemId, options) =>
-    (editOrderCart || []).find(
-      (c) =>
-        c?.id_menu === itemId &&
-        (c.options?.spiciness || "") === (options?.spiciness || "") &&
-        (c.options?.temperature || "") === (options?.temperature || "")
-    );
-
-  const addItemToEditOrderCart = (item) => {
-    if (!item?.id_menu) return;
-    const opts = editOrderItemSelections[item.id_menu] || {
-      spiciness: "",
-      temperature: "",
-    };
-    // validation optional
-    setEditOrderCart((prev) => {
-      const exist = findEditOrderCartItem(item.id_menu, opts);
-      if (exist) {
-        return prev.map((c) =>
-          c === exist ? { ...c, quantity: (c.quantity || 0) + 1 } : c
-        );
-      }
-      return [
-        ...prev,
-        {
-          id_menu: item.id_menu,
-          name: item.name || "Unknown Item",
-          price: item.price || 0,
-          quantity: 1,
-          options: { ...opts },
-        },
-      ];
-    });
   };
 
   const removeItemFromEditOrderCart = (item) => {
@@ -1172,28 +1223,110 @@ const AdminPage = () => {
    * Effects
    * ========================
    */
-  useEffect(() => {
-    if (!token) return;
-    let intervalId;
-    (async () => {
-      await warmupBackend();
-      await fetchOrders(true);
-      fetchMenuItems();
-      fetchTables();
-      intervalId = setInterval(() => {
-        fetchOrders(true);
-      }, 5000);
-    })();
-    return () => {
-      try {
-        clearInterval(intervalId);
-      } catch {}
-      try {
-        ordersAbortRef.current?.abort();
-      } catch {}
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+// Tambahkan di bagian atas AdminPage.jsx untuk debugging network requests
+useEffect(() => {
+  // Debug network requests
+  const originalFetch = window.fetch;
+  window.fetch = function(...args) {
+    console.log('FETCH REQUEST:', {
+      url: args[0],
+      method: args[1]?.method || 'GET',
+      headers: args[1]?.headers,
+      timestamp: new Date().toISOString()
+    });
+    
+    return originalFetch.apply(this, args)
+      .then(response => {
+        console.log('FETCH RESPONSE:', {
+          url: args[0],
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          timestamp: new Date().toISOString()
+        });
+        return response;
+      })
+      .catch(error => {
+        console.error('FETCH ERROR:', {
+          url: args[0],
+          error: error.message,
+          name: error.name,
+          timestamp: new Date().toISOString()
+        });
+        throw error;
+      });
+  };
+  
+  return () => {
+    window.fetch = originalFetch;
+  };
+}, []);
+
+// FIXED showEditOrder function - ganti yang ada di AdminPage.jsx
+const showEditOrder = (order) => {
+  console.log('showEditOrder called with order:', order);
+  
+  if (!order?.items) {
+    console.error('Order data is invalid - no items field:', order);
+    alert("Data pesanan tidak valid - items field missing");
+    return;
+  }
+
+  console.log('Order items raw:', {
+    items: order.items,
+    type: typeof order.items,
+    length: order.items?.length
+  });
+
+  const normalizedItems = normalizeOrderItems(order.items);
+  console.log('Normalized items:', normalizedItems);
+
+  if (!normalizedItems || normalizedItems.length === 0) {
+    console.warn('No items found in order after normalization');
+    alert("Pesanan ini tidak memiliki item yang valid");
+    return;
+  }
+
+  const existing = normalizedItems
+    .map(toUnifiedItem)
+    .filter((it) => {
+      const isValid = it.id_menu > 0 && it.quantity > 0;
+      if (!isValid) {
+        console.warn('Filtered out invalid item:', it);
+      }
+      return isValid;
+    });
+
+  console.log('Final existing items for edit:', existing);
+
+  setEditOrderCart(existing);
+
+  // Initialize selections
+  const sel = {};
+  (menuItems || []).forEach((mi) => {
+    if (mi?.id_menu) sel[mi.id_menu] = { spiciness: "", temperature: "" };
+  });
+
+  // Apply existing selections from order items
+  normalizedItems.forEach((raw) => {
+    const id = Number(
+      raw?.id_menu ?? raw?.menu_item_id ?? raw?.menu_id ?? raw?.menuId
+    ) || 0;
+    if (id && sel[id]) {
+      sel[id] = {
+        spiciness: raw?.spiciness_level ?? raw?.spiciness ?? "",
+        temperature: raw?.temperature_level ?? raw?.temperature ?? "",
+      };
+    }
+  });
+
+  setEditOrderItemSelections(sel);
+  setEditOrderNote("");
+  setSelectedOrderForDetail(order);
+  setIsEditOrderModalOpen(true);
+
+  console.log('Edit order modal opened successfully');
+};
 
   useEffect(() => {
     if (activeTab === "laporan" && token) fetchSalesReport();
