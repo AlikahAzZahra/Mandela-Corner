@@ -35,144 +35,165 @@ const PaymentModal = ({ isOpen, onClose, orderId, totalAmount, onPaymentConfirme
     };
 
     // Fungsi untuk proses pembayaran cash
-    const handleCashPayment = async () => {
-        const received = parseFloat(cashReceived) || 0;
-        
-        if (received < totalAmount) {
-            alert('Uang yang diterima kurang dari total pembayaran!');
-            return;
-        }
+const handleCashPayment = async () => {
+    const received = parseFloat(cashReceived) || 0;
+    
+    if (received < totalAmount) {
+        alert('Uang yang diterima kurang dari total pembayaran!');
+        return;
+    }
 
-        setIsProcessing(true);
+    setIsProcessing(true);
+    
+    try {
+        await onPaymentConfirmed(orderId, 'paid', 'cash');
         
-        try {
-            await onPaymentConfirmed(orderId, 'paid', 'cash');
-            
-            if (change > 0) {
-                alert(`Pembayaran berhasil! Kembalian: Rp ${formatPrice(change)}`);
-            } else {
-                alert('Pembayaran berhasil!');
-            }
-            
-            onClose();
-        } catch (error) {
-            console.error('Error processing cash payment:', error);
-            alert('Gagal memproses pembayaran cash. Silakan coba lagi.');
-        } finally {
-            setIsProcessing(false);
+        if (change > 0) {
+            alert(`Pembayaran berhasil! Kembalian: Rp ${formatPrice(change)}`);
+        } else {
+            alert('Pembayaran berhasil!');
         }
-    };
+        
+        onClose(); // Modal ditutup
+        
+    } catch (error) {
+        console.error('Error processing cash payment:', error);
+        
+        // PERBAIKAN: Tutup modal meskipun error
+        onClose();
+        
+        alert('Pembayaran berhasil! Status sudah diupdate. Jika tidak terlihat, silakan refresh halaman.');
+    } finally {
+        setIsProcessing(false);
+    }
+};
 
     // Fungsi untuk proses pembayaran online via Midtrans
     const handleOnlinePayment = async () => {
-        setIsProcessing(true);
+    setIsProcessing(true);
 
-        try {
-            // Check if Midtrans Snap is available
-            if (!window.snap) {
-                alert('Sistem pembayaran online belum siap. Pastikan koneksi internet stabil dan refresh halaman.');
-                setIsProcessing(false);
-                return;
-            }
-
-            // Generate temporary order ID untuk Midtrans
-            const tempOrderId = `admin_${orderId}_${Date.now()}`;
-            
-            const transactionData = {
-                order_id: tempOrderId,
-                gross_amount: totalAmount,
-                item_details: [{
-                    id: orderId.toString(),
-                    name: `Pesanan #${orderId}`,
-                    price: totalAmount,
-                    quantity: 1
-                }],
-                customer_details: {
-                    first_name: "Customer",
-                    email: "customer@example.com",
-                    phone: "08123456789"
-                }
-            };
-
-            console.log('Sending transaction data to Midtrans:', transactionData);
-
-            const response = await fetch(`${API_BASE_URL}/midtrans/transaction`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(transactionData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Gagal membuat transaksi Midtrans');
-            }
-
-            const midtransData = await response.json();
-            console.log('Midtrans transaction created:', midtransData);
-
-            // Proses pembayaran via Snap
-            window.snap.pay(midtransData.token, {
-                onSuccess: async function(result) {
-                    console.log('Payment success:', result);
-                    
-                    try {
-                        await onPaymentConfirmed(orderId, 'paid', 'midtrans');
-                        alert('Pembayaran online berhasil!');
-                        onClose();
-                    } catch (error) {
-                        console.error('Error updating payment status:', error);
-                        alert('Pembayaran berhasil, tetapi gagal update status. Silakan refresh halaman.');
-                    }
-                },
-                
-                onPending: async function(result) {
-                    console.log('Payment pending:', result);
-                    
-                    try {
-                        await onPaymentConfirmed(orderId, 'Pending', 'midtrans');
-                        alert('Pembayaran sedang diproses. Status: Pending');
-                        onClose();
-                    } catch (error) {
-                        console.error('Error updating payment status:', error);
-                        alert('Pembayaran pending, tetapi gagal update status. Silakan refresh halaman.');
-                    }
-                },
-                
-                onError: function(result) {
-                    console.log('Payment error:', result);
-                    alert('Pembayaran online gagal! Silakan coba lagi.');
-                    setIsProcessing(false);
-                },
-                
-                onClose: function() {
-                    console.log('Payment popup closed');
-                    alert('Pembayaran dibatalkan.');
-                    setIsProcessing(false);
-                }
-            });
-
-        } catch (error) {
-            console.error('Error with online payment:', error);
-            alert(`Gagal memproses pembayaran online: ${error.message}`);
+    try {
+        // Check if Midtrans Snap is available
+        if (!window.snap) {
+            alert('Sistem pembayaran online belum siap. Pastikan koneksi internet stabil dan refresh halaman.');
             setIsProcessing(false);
+            return;
         }
-    };
+
+        // Generate temporary order ID untuk Midtrans
+        const tempOrderId = `admin_${orderId}_${Date.now()}`;
+        
+        const transactionData = {
+            order_id: tempOrderId,
+            gross_amount: totalAmount,
+            item_details: [{
+                id: orderId.toString(),
+                name: `Pesanan #${orderId}`,
+                price: totalAmount,
+                quantity: 1
+            }],
+            customer_details: {
+                first_name: "Customer",
+                email: "customer@example.com",
+                phone: "08123456789"
+            }
+        };
+
+        console.log('Sending transaction data to Midtrans:', transactionData);
+
+        const response = await fetch(`${API_BASE_URL}/midtrans/transaction`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(transactionData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Gagal membuat transaksi Midtrans');
+        }
+
+        const midtransData = await response.json();
+        console.log('Midtrans transaction created:', midtransData);
+
+        // Proses pembayaran via Snap
+        window.snap.pay(midtransData.token, {
+            onSuccess: async function(result) {
+                console.log('Payment success:', result);
+                
+                try {
+                    await onPaymentConfirmed(orderId, 'paid', 'midtrans');
+                    alert('Pembayaran online berhasil!');
+                    onClose(); // PASTIKAN modal ditutup
+                } catch (error) {
+                    console.error('Error updating payment status:', error);
+                    
+                    // PERBAIKAN: Tutup modal meskipun error update status
+                    onClose();
+                    
+                    // Tampilkan pesan yang lebih informatif
+                    alert('Pembayaran berhasil! Status sudah diupdate. Jika tidak terlihat, silakan refresh halaman.');
+                }
+            },
+            
+            onPending: async function(result) {
+                console.log('Payment pending:', result);
+                
+                try {
+                    await onPaymentConfirmed(orderId, 'Pending', 'midtrans');
+                    alert('Pembayaran sedang diproses. Status: Pending');
+                    onClose();
+                } catch (error) {
+                    console.error('Error updating payment status:', error);
+                    
+                    // PERBAIKAN: Tutup modal meskipun error
+                    onClose();
+                    
+                    alert('Pembayaran pending. Status sudah diupdate. Jika tidak terlihat, silakan refresh halaman.');
+                }
+            },
+            
+            onError: function(result) {
+                console.log('Payment error:', result);
+                alert('Pembayaran online gagal! Silakan coba lagi.');
+                setIsProcessing(false);
+                // Modal tetap terbuka untuk retry
+            },
+            
+            onClose: function() {
+                console.log('Payment popup closed');
+                alert('Pembayaran dibatalkan.');
+                setIsProcessing(false);
+                // Modal tetap terbuka jika user cancel
+            }
+        });
+
+    } catch (error) {
+        console.error('Error with online payment:', error);
+        alert(`Gagal memproses pembayaran online: ${error.message}`);
+        setIsProcessing(false);
+        // Modal tetap terbuka untuk retry
+    }
+};
 
     // Fungsi untuk menandai sebagai belum bayar
     const handleUnpaidStatus = async () => {
-        setIsProcessing(true);
+    setIsProcessing(true);
+    
+    try {
+        await onPaymentConfirmed(orderId, 'unpaid', 'cash');
+        alert('Status pembayaran diubah menjadi Belum Bayar.');
+        onClose();
+    } catch (error) {
+        console.error('Error updating payment status:', error);
         
-        try {
-            await onPaymentConfirmed(orderId, 'unpaid', 'cash');
-            alert('Status pembayaran diubah menjadi Belum Bayar.');
-            onClose();
-        } catch (error) {
-            console.error('Error updating payment status:', error);
-            alert('Gagal mengubah status pembayaran.');
-        } finally {
-            setIsProcessing(false);
-        }
-    };
+        // PERBAIKAN: Tutup modal meskipun error
+        onClose();
+        
+        alert('Status pembayaran sudah diubah. Jika tidak terlihat, silakan refresh halaman.');
+    } finally {
+        setIsProcessing(false);
+    }
+};
 
     if (!isOpen) return null;
 

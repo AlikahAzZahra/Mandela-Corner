@@ -804,45 +804,64 @@ const fetchTables = async () => {
     setIsPaymentModalOpen(true);
   };
 
-  const updateOrderPaymentStatus = async (
-    orderId,
-    modalPaymentStatus,
-    paymentMethod
-  ) => {
-    try {
-      let statusToSend = modalPaymentStatus;
-      if (modalPaymentStatus === "paid") statusToSend = "Sudah Bayar";
-      if (modalPaymentStatus === "unpaid") statusToSend = "Belum Bayar";
+ const updateOrderPaymentStatus = async (orderId, modalPaymentStatus, paymentMethod) => {
+  try {
+    let statusToSend = modalPaymentStatus;
+    if (modalPaymentStatus === "paid") statusToSend = "Sudah Bayar";
+    if (modalPaymentStatus === "unpaid") statusToSend = "Belum Bayar";
 
-      const resp = await fetch(
-        `${apiBaseUrl}/orders/${orderId}/payment_status?t=${Date.now()}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "Cache-Control": "no-cache",
-          },
-          cache: "no-store",
-          body: JSON.stringify({
-            payment_status: statusToSend,
-            payment_method: paymentMethod || "cash",
-          }),
-        }
-      );
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        throw new Error(j.message || `HTTP ${resp.status}`);
+    const resp = await fetch(
+      `${apiBaseUrl}/orders/${orderId}/payment_status?t=${Date.now()}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Cache-Control": "no-cache",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          payment_status: statusToSend,
+          payment_method: paymentMethod || "cash",
+        }),
       }
-      alert(`Status pembayaran pesanan ${orderId} diupdate!`);
-      await fetchOrders(true);
-      return Promise.resolve();
-    } catch (e) {
-      alert(`Gagal update pembayaran: ${e.message}`);
-      return Promise.reject(e);
+    );
+
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      throw new Error(j.message || `HTTP ${resp.status}`);
     }
-  };
+
+    // PERBAIKAN: Close modal sebelum refresh
+    setIsPaymentModalOpen(false);
+    setSelectedOrderIdForPayment(0);
+    setSelectedOrderTotalAmount(0);
+
+    // Success message
+    alert(`Status pembayaran pesanan ${orderId} berhasil diupdate!`);
+    
+    // Refresh orders
+    await fetchOrders(true);
+    
+    // Return resolved promise
+    return Promise.resolve();
+    
+  } catch (e) {
+    console.error('Payment update error:', e);
+    
+    // PERBAIKAN: Tetap close modal meskipun error
+    setIsPaymentModalOpen(false);
+    setSelectedOrderIdForPayment(0);
+    setSelectedOrderTotalAmount(0);
+    
+    // Check if payment actually succeeded by refreshing data
+    await fetchOrders(true);
+    
+    alert(`Error: ${e.message}. Silakan cek status pembayaran di daftar pesanan.`);
+    return Promise.reject(e);
+  }
+};
 
   const removeItemFromEditOrderCart = (item) => {
     if (!item?.id_menu) return;
@@ -1351,68 +1370,24 @@ useEffect(() => {
 
 // FIXED showEditOrder function - ganti yang ada di AdminPage.jsx
 const showEditOrder = (order) => {
-  console.log('showEditOrder called with order:', order);
+  console.log('showEditOrder called with:', order);
   
   if (!order?.items) {
-    console.error('Order data is invalid - no items field:', order);
-    alert("Data pesanan tidak valid - items field missing");
+    alert("Data pesanan tidak valid");
     return;
   }
 
-  console.log('Order items raw:', {
-    items: order.items,
-    type: typeof order.items,
-    length: order.items?.length
-  });
-
   const normalizedItems = normalizeOrderItems(order.items);
-  console.log('Normalized items:', normalizedItems);
-
   if (!normalizedItems || normalizedItems.length === 0) {
-    console.warn('No items found in order after normalization');
     alert("Pesanan ini tidak memiliki item yang valid");
     return;
   }
 
-  const existing = normalizedItems
-    .map(toUnifiedItem)
-    .filter((it) => {
-      const isValid = it.id_menu > 0 && it.quantity > 0;
-      if (!isValid) {
-        console.warn('Filtered out invalid item:', it);
-      }
-      return isValid;
-    });
-
-  console.log('Final existing items for edit:', existing);
-
+  const existing = normalizedItems.map(toUnifiedItem).filter((it) => it.id_menu > 0 && it.quantity > 0);
+  
   setEditOrderCart(existing);
-
-  // Initialize selections
-  const sel = {};
-  (menuItems || []).forEach((mi) => {
-    if (mi?.id_menu) sel[mi.id_menu] = { spiciness: "", temperature: "" };
-  });
-
-  // Apply existing selections from order items
-  normalizedItems.forEach((raw) => {
-    const id = Number(
-      raw?.id_menu ?? raw?.menu_item_id ?? raw?.menu_id ?? raw?.menuId
-    ) || 0;
-    if (id && sel[id]) {
-      sel[id] = {
-        spiciness: raw?.spiciness_level ?? raw?.spiciness ?? "",
-        temperature: raw?.temperature_level ?? raw?.temperature ?? "",
-      };
-    }
-  });
-
-  setEditOrderItemSelections(sel);
-  setEditOrderNote("");
   setSelectedOrderForDetail(order);
   setIsEditOrderModalOpen(true);
-
-  console.log('Edit order modal opened successfully');
 };
 
   useEffect(() => {
