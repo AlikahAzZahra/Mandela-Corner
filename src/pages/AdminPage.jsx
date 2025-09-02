@@ -325,23 +325,23 @@ const AdminPage = () => {
 
 // FIXED fetchOrders function - ganti function yang ada di AdminPage.jsx
 const fetchOrders = async (force = false) => {
+  console.log('📋 fetchOrders called, token:', !!token, 'force:', force);
+  
   if (!token) {
-    console.log('⚠️ No token available for fetchOrders');
+    console.log('❌ No token available for fetchOrders');
     return;
   }
   
-  // Prevent multiple concurrent requests
   if (ordersInFlightRef.current && !force) {
     console.log('⚠️ Orders request already in flight, skipping...');
     return;
   }
 
-  // Cancel previous request if exists
   if (ordersAbortRef.current) {
     try {
       ordersAbortRef.current.abort('New request initiated');
     } catch (err) {
-      console.log('Previous request already completed or aborted');
+      console.log('Previous request cleanup completed');
     }
   }
 
@@ -349,14 +349,13 @@ const fetchOrders = async (force = false) => {
   const controller = new AbortController();
   ordersAbortRef.current = controller;
   
-  // Increase timeout and add better error handling
   const timeoutId = setTimeout(() => {
     console.log('⏱️ Request timeout, aborting...');
     controller.abort('Request timeout after 30 seconds');
-  }, 30000); // Increased to 30 seconds
+  }, 30000);
 
   try {
-    console.log(`🔄 Fetching orders... (force: ${force})`);
+    console.log('🔄 Fetching orders...');
     const url = `${apiBaseUrl}/orders?t=${Date.now()}${force ? "&force=1" : ""}`;
     
     const resp = await fetch(url, {
@@ -372,83 +371,47 @@ const fetchOrders = async (force = false) => {
       signal: controller.signal,
     });
 
-    console.log(`📡 Response status: ${resp.status}`);
+    console.log('📋 Orders response status:', resp.status);
     
     if (!resp.ok) {
       if (resp.status === 401 || resp.status === 403) {
-        console.log('🔐 Authentication failed, logging out...');
+        console.log('🔐 Authentication failed in fetchOrders');
         handleLogout();
         return;
       }
-      
-      let errorMessage = `HTTP ${resp.status}`;
-      try {
-        const errorText = await resp.text();
-        if (errorText) {
-          try {
-            const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.message || errorText;
-          } catch {
-            errorMessage = errorText;
-          }
-        }
-      } catch (err) {
-        console.log('Could not read error response:', err);
-      }
-      
-      throw new Error(errorMessage);
+      throw new Error(`HTTP ${resp.status}`);
     }
 
     const responseText = await resp.text();
-    console.log(`📥 Response received, length: ${responseText.length} characters`);
+    console.log('📋 Orders response length:', responseText.length);
     
     let data = [];
     try {
       const parsed = JSON.parse(responseText);
       data = Array.isArray(parsed) ? parsed : [];
-      console.log(`✅ Parsed ${data.length} orders successfully`);
-      
-      // Debug: Log first order to check structure
-      if (data.length > 0) {
-        console.log('🔍 Sample order structure:', {
-          order_id: data[0].order_id,
-          items_type: typeof data[0].items,
-          items_length: data[0].items ? JSON.parse(data[0].items || '[]').length : 0,
-          has_items: !!data[0].items
-        });
-      }
-      
+      console.log('📋 Orders parsed successfully:', data.length, 'orders');
     } catch (parseError) {
-      console.error('❌ JSON parse error:', parseError);
-      console.log('Raw response:', responseText.substring(0, 500) + '...');
+      console.error('❌ Orders JSON parse error:', parseError);
       data = [];
     }
 
+    console.log('📋 Setting orders state with:', data.length, 'orders');
     setOrders(data);
     setLastRefresh(new Date());
-    console.log(`🎉 Orders updated successfully: ${data.length} orders`);
+    console.log('📋 Orders state updated successfully');
     
   } catch (error) {
     console.error('❌ fetchOrders error:', error);
     
-    // Handle different types of errors
     if (error.name === 'AbortError') {
       console.log('🔄 Request was aborted:', error.message || 'Unknown reason');
-      // Don't show error to user for aborted requests unless it's unexpected
-      if (!error.message?.includes('New request initiated') && !error.message?.includes('timeout')) {
-        console.warn('Unexpected abort:', error);
-      }
-    } else if (error.message?.includes('Failed to fetch')) {
-      console.error('🌐 Network error - server might be down');
-      // Optional: Show user-friendly message
     } else {
-      console.error('💥 Unexpected error:', error.message);
+      console.error('💥 Unexpected fetchOrders error:', error.message);
     }
     
   } finally {
     clearTimeout(timeoutId);
     ordersInFlightRef.current = false;
-    // Don't clear the abort controller reference immediately in case we need to check it
     setTimeout(() => {
       if (ordersAbortRef.current === controller) {
         ordersAbortRef.current = null;
@@ -457,64 +420,110 @@ const fetchOrders = async (force = false) => {
   }
 };
 
-
   const fetchMenuItems = async () => {
-    if (!token) return;
-    try {
-      const resp = await fetch(`${apiBaseUrl}/menu?t=${Date.now()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-        },
-        cache: "no-store",
-      });
-      if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
-          handleLogout();
-          return;
-        }
-        throw new Error(`HTTP ${resp.status}`);
+  console.log('🍽️ fetchMenuItems called, token:', !!token);
+  
+  if (!token) {
+    console.log('❌ No token available for fetchMenuItems');
+    return;
+  }
+  
+  try {
+    console.log('🔄 Fetching menu items...');
+    const resp = await fetch(`${apiBaseUrl}/menu?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      },
+    });
+    
+    console.log('🍽️ Menu response status:', resp.status);
+    
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        console.log('🔐 Authentication failed in fetchMenuItems');
+        handleLogout();
+        return;
       }
-      const data = await resp.json();
-      const arr = Array.isArray(data) ? data : [];
-      setMenuItems(arr);
-
-      // init selection map
-      const sel = {};
-      arr.forEach((it) => {
-        if (it?.id_menu) sel[it.id_menu] = { spiciness: "", temperature: "" };
-      });
-      setNewOrderItemSelections(sel);
-    } catch (e) {
-      console.error("fetchMenuItems error:", e);
+      throw new Error(`HTTP ${resp.status}`);
     }
-  };
+    
+    const data = await resp.json();
+    console.log('🍽️ Menu data received:', data);
+    console.log('🍽️ Menu data type:', typeof data, 'isArray:', Array.isArray(data));
+    console.log('🍽️ Menu data length:', data?.length);
+    
+    const arr = Array.isArray(data) ? data : [];
+    console.log('🍽️ Setting menuItems state with:', arr.length, 'items');
+    
+    setMenuItems(arr);
+    console.log('🍽️ setMenuItems called successfully');
 
-  const fetchTables = async () => {
-    if (!token) return;
-    try {
-      const resp = await fetch(`${apiBaseUrl}/tables?t=${Date.now()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-        },
-        cache: "no-store",
-      });
-      if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
-          handleLogout();
-          return;
-        }
-        throw new Error(`HTTP ${resp.status}`);
+    // Initialize selection map
+    const sel = {};
+    arr.forEach((it) => {
+      if (it?.id_menu) sel[it.id_menu] = { spiciness: "", temperature: "" };
+    });
+    setNewOrderItemSelections(sel);
+    console.log('🍽️ Selection map initialized');
+    
+  } catch (e) {
+    console.error('❌ fetchMenuItems error:', e);
+  }
+};
+
+const fetchTables = async () => {
+  console.log('🪑 fetchTables called, token:', !!token);
+  
+  if (!token) {
+    console.log('❌ No token available for fetchTables');
+    return;
+  }
+  
+  try {
+    console.log('🔄 Fetching tables...');
+    const resp = await fetch(`${apiBaseUrl}/tables?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      },
+    });
+    
+    console.log('🪑 Tables response status:', resp.status);
+    
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        console.log('🔐 Authentication failed in fetchTables');
+        handleLogout();
+        return;
       }
-      const data = await resp.json();
-      setTables(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("fetchTables error:", e);
+      throw new Error(`HTTP ${resp.status}`);
     }
-  };
+    
+    const data = await resp.json();
+    console.log('🪑 Tables data received:', data);
+    console.log('🪑 Tables data length:', data?.length);
+    
+    const arr = Array.isArray(data) ? data : [];
+    console.log('🪑 Setting tables state with:', arr.length, 'tables');
+    
+    setTables(arr);
+    console.log('🪑 setTables called successfully');
+    
+  } catch (e) {
+    console.error('❌ fetchTables error:', e);
+  }
+};
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -1224,43 +1233,86 @@ const fetchOrders = async (force = false) => {
    * ========================
    */
 // Tambahkan di bagian atas AdminPage.jsx untuk debugging network requests
+// GANTI useEffect yang ada di AdminPage.jsx dengan ini:
+
 useEffect(() => {
-  // Debug network requests
-  const originalFetch = window.fetch;
-  window.fetch = function(...args) {
-    console.log('FETCH REQUEST:', {
-      url: args[0],
-      method: args[1]?.method || 'GET',
-      headers: args[1]?.headers,
-      timestamp: new Date().toISOString()
-    });
-    
-    return originalFetch.apply(this, args)
-      .then(response => {
-        console.log('FETCH RESPONSE:', {
-          url: args[0],
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok,
-          timestamp: new Date().toISOString()
-        });
-        return response;
-      })
-      .catch(error => {
-        console.error('FETCH ERROR:', {
-          url: args[0],
-          error: error.message,
-          name: error.name,
-          timestamp: new Date().toISOString()
-        });
-        throw error;
-      });
+  console.log('useEffect triggered - token:', !!token);
+  
+  if (!token) {
+    console.log('No token, skipping data fetch');
+    return;
+  }
+  
+  let intervalId;
+  
+  const initializeData = async () => {
+    try {
+      console.log('Starting data initialization...');
+      
+      // Warmup backend
+      await warmupBackend();
+      console.log('Backend warmed up');
+      
+      // Fetch all data
+      await fetchOrders(true);
+      console.log('Orders fetched');
+      
+      await fetchMenuItems();
+      console.log('Menu items fetched');
+      
+      await fetchTables();
+      console.log('Tables fetched');
+      
+      console.log('All data fetched successfully');
+      
+      // Set up interval for orders only
+      intervalId = setInterval(() => {
+        console.log('Interval fetch orders...');
+        fetchOrders(true);
+      }, 10000); // Increased to 10 seconds
+      
+    } catch (error) {
+      console.error('Error in data initialization:', error);
+    }
   };
   
+  // Call initialization
+  initializeData();
+  
+  // Cleanup function
   return () => {
-    window.fetch = originalFetch;
+    console.log('Cleaning up useEffect...');
+    try {
+      if (intervalId) {
+        clearInterval(intervalId);
+        console.log('Interval cleared');
+      }
+    } catch (e) {
+      console.error('Error clearing interval:', e);
+    }
+    try {
+      if (ordersAbortRef.current) {
+        ordersAbortRef.current.abort('Component unmounting');
+        console.log('Pending requests aborted');
+      }
+    } catch (e) {
+      console.error('Error aborting requests:', e);
+    }
   };
-}, []);
+}, [token]); // Keep dependency on token
+
+// TAMBAHAN: useEffect untuk debug state changes
+useEffect(() => {
+  console.log('MenuItems state updated:', menuItems.length, 'items');
+}, [menuItems]);
+
+useEffect(() => {
+  console.log('Tables state updated:', tables.length, 'tables');
+}, [tables]);
+
+useEffect(() => {
+  console.log('Orders state updated:', orders.length, 'orders');
+}, [orders]);
 
 // FIXED showEditOrder function - ganti yang ada di AdminPage.jsx
 const showEditOrder = (order) => {
