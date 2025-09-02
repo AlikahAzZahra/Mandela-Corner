@@ -252,6 +252,8 @@ const AdminPage = () => {
   });
   const [isLoadingReport, setIsLoadingReport] = useState(false);
 
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+
   /**
    * ========================
    * Auth
@@ -1003,56 +1005,89 @@ const fetchTables = async () => {
       0
     );
 
-  const handleAddOrderForCashier = async () => {
-    const valid = (newOrderCart || []).filter(
-      (it) => it?.id_menu && Number(it?.quantity) > 0
-    );
-    if (valid.length === 0) {
-      alert("Keranjang pesanan kosong.");
-      return;
-    }
-    const items = valid.map((it) => ({
-      id_menu: Number(it.id_menu),
-      quantity: Number(it.quantity),
-      spiciness_level: it?.options?.spiciness || null,
-      temperature_level: it?.options?.temperature || null,
-    }));
-    const payload = {
-      tableNumber: "Take Away",
-      items,
-      customerName: newOrderCustomerName.trim() || null,
-    };
-    try {
-      const resp = await fetch(`${apiBaseUrl}/orders?t=${Date.now()}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-        },
-        cache: "no-store",
-        body: JSON.stringify(payload),
-      });
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        throw new Error(j.message || `HTTP ${resp.status}`);
-      }
-      const j = await resp.json();
-      setIsAddOrderModalOpen(false);
-      setNewOrderCustomerName("");
-      setNewOrderCart([]);
-      const sel = {};
-      (menuItems || []).forEach((mi) => {
-        if (mi?.id_menu) sel[mi.id_menu] = { spiciness: "", temperature: "" };
-      });
-      setNewOrderItemSelections(sel);
-      alert(`Pesanan baru berhasil dibuat (ID: ${j.orderId || "-"})`);
-      fetchOrders(true);
-    } catch (e) {
-      alert(`Gagal membuat pesanan: ${e.message}`);
-    }
+const handleAddOrderForCashier = async () => {
+  // Prevent multiple submissions
+  if (isSubmittingOrder) {
+    console.log('Order submission already in progress...');
+    return;
+  }
+
+  const valid = (newOrderCart || []).filter(
+    (it) => it?.id_menu && Number(it?.quantity) > 0
+  );
+  
+  if (valid.length === 0) {
+    alert("Keranjang pesanan kosong.");
+    return;
+  }
+
+  setIsSubmittingOrder(true); // Start loading
+
+  const items = valid.map((it) => ({
+    id_menu: Number(it.id_menu),
+    quantity: Number(it.quantity),
+    spiciness_level: it?.options?.spiciness || null,
+    temperature_level: it?.options?.temperature || null,
+  }));
+
+  const payload = {
+    tableNumber: "Take Away",
+    items,
+    customerName: newOrderCustomerName.trim() || null,
   };
+
+  console.log('Submitting order:', payload);
+
+  try {
+    const resp = await fetch(`${apiBaseUrl}/orders?t=${Date.now()}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "Cache-Control": "no-cache",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    console.log('Order submission response status:', resp.status);
+
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      throw new Error(j.message || `HTTP ${resp.status}`);
+    }
+
+    const j = await resp.json();
+    console.log('Order creation response:', j);
+
+    // Close modal immediately
+    setIsAddOrderModalOpen(false);
+    
+    // Clear form
+    setNewOrderCustomerName("");
+    setNewOrderCart([]);
+    const sel = {};
+    (menuItems || []).forEach((mi) => {
+      if (mi?.id_menu) sel[mi.id_menu] = { spiciness: "", temperature: "" };
+    });
+    setNewOrderItemSelections(sel);
+
+    // Show success message immediately
+    alert(`Pesanan baru berhasil dibuat! ID: ${j.orderId || "unknown"}`);
+    
+    // Refresh orders after short delay
+    setTimeout(() => {
+      fetchOrders(true);
+    }, 1000);
+
+  } catch (e) {
+    console.error('Order submission error:', e);
+    alert(`Gagal membuat pesanan: ${e.message}`);
+  } finally {
+    setIsSubmittingOrder(false); // End loading
+  }
+};
+
 
   // ====== Reports
   const fetchSalesReport = async () => {
@@ -2879,9 +2914,13 @@ const showEditOrder = (order) => {
                 <button
                   className="add-save-btn"
                   onClick={handleAddOrderForCashier}
-                  disabled={getNewOrderTotalItems() === 0}
+                  disabled={getNewOrderTotalItems() === 0 || isSubmittingOrder}
+                  style={{
+                    opacity: isSubmittingOrder ? 0.6 : 1,
+                    cursor: isSubmittingOrder ? 'not-allowed' : 'pointer'
+                  }}
                 >
-                  Buat Pesanan
+                  {isSubmittingOrder ? 'Memproses...' : 'Buat Pesanan'}
                 </button>
               </div>
             </div>
