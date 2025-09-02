@@ -768,35 +768,54 @@ const fetchTables = async () => {
    * Orders
    * ========================
    */
-  const updateOrderStatus = async (orderId, newStatus) => {
-    if (!orderId || !newStatus) return;
-    if (!window.confirm(`Ubah status pesanan ${orderId} menjadi ${newStatus}?`))
-      return;
-    try {
-      const resp = await fetch(
-        `${apiBaseUrl}/orders/${orderId}/status?t=${Date.now()}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "Cache-Control": "no-cache",
-          },
-          cache: "no-store",
-          body: JSON.stringify({ status: newStatus }),
-        }
-      );
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        throw new Error(j.message || `HTTP ${resp.status}`);
-      }
-      alert(`Status pesanan ${orderId} diupdate!`);
-      fetchOrders(true);
-    } catch (e) {
+// Fix updateOrderStatus function
+const updateOrderStatus = async (orderId, newStatus) => {
+  if (!orderId || !newStatus) return;
+  if (!window.confirm(`Ubah status pesanan ${orderId} menjadi ${newStatus}?`)) return;
+  
+  try {
+    const resp = await fetch(`${apiBaseUrl}/orders/${orderId}/status?t=${Date.now()}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    
+    const result = await resp.json();
+    
+    if (!resp.ok) {
+      throw new Error(result.message || `HTTP ${resp.status}`);
+    }
+    
+    // PERBAIKAN: Selalu refresh data dan hanya tampilkan success message
+    await fetchOrders(true);
+    
+    // Check if update actually worked by finding the order
+    const updatedOrder = orders.find(o => o.order_id === orderId);
+    if (updatedOrder && updatedOrder.order_status === newStatus) {
+      alert(`Status pesanan ${orderId} berhasil diubah!`);
+    } else {
+      alert(`Status pesanan ${orderId} diupdate. Silakan refresh jika belum terlihat.`);
+    }
+    
+  } catch (e) {
+    console.error('Update status error:', e);
+    
+    // PERBAIKAN: Refresh data dulu sebelum tampilkan error
+    await fetchOrders(true);
+    
+    const updatedOrder = orders.find(o => o.order_id === orderId);
+    if (updatedOrder && updatedOrder.order_status === newStatus) {
+      // Actually succeeded despite error message
+      alert(`Status pesanan ${orderId} berhasil diubah!`);
+    } else {
       alert(`Gagal update status: ${e.message}`);
     }
-  };
+  }
+};
 
   const handleCashierPaymentClick = (orderId, amount) => {
     setSelectedOrderIdForPayment(orderId);
@@ -2193,7 +2212,13 @@ const showEditOrder = (order) => {
         <div className="edit-order-modal-overlay">
           <div className="edit-order-container">
             <div className="edit-order-header">
-              <button className="back-btn" onClick={closeEditOrder}>
+              <button className="back-btn" onClick={() => {
+                setIsEditOrderModalOpen(false);
+                setSelectedOrderForDetail(null);
+                setEditOrderCart([]);
+                setEditOrderItemSelections({});
+                setEditOrderNote("");
+              }}>
                 ←
               </button>
               <h2>Edit Pesanan #{selectedOrderForDetail.order_id || "N/A"}</h2>
