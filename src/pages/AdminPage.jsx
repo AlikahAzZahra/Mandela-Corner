@@ -325,7 +325,7 @@ const AdminPage = () => {
     }
   };
 
-// FIXED fetchOrders function - dengan fallback untuk missing items
+// FIXED fetchOrders function - removed individual order fetching workaround
 const fetchOrders = async (force = false) => {
   console.log('📋 fetchOrders called, token:', !!token, 'force:', force);
   
@@ -392,40 +392,6 @@ const fetchOrders = async (force = false) => {
       const parsed = JSON.parse(responseText);
       data = Array.isArray(parsed) ? parsed : [];
       console.log('📋 Orders parsed successfully:', data.length, 'orders');
-      
-      // WORKAROUND: Fetch individual order items for orders with missing items
-      const ordersWithMissingItems = data.filter(order => {
-        const items = normalizeOrderItems(order.items);
-        return !items || items.length === 0;
-      });
-      
-      if (ordersWithMissingItems.length > 0) {
-        console.log('🔧 Found orders with missing items, attempting to fetch details:', ordersWithMissingItems.map(o => o.order_id));
-        
-        // Try to fetch items for each order individually
-        for (const order of ordersWithMissingItems) {
-          try {
-            const detailResp = await fetch(`${apiBaseUrl}/orders/${order.order_id}?t=${Date.now()}`, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/json",
-              },
-              signal: controller.signal,
-            });
-            
-            if (detailResp.ok) {
-              const detailData = await detailResp.json();
-              if (detailData.items) {
-                order.items = detailData.items;
-                console.log(`✅ Retrieved items for order ${order.order_id}:`, detailData.items);
-              }
-            }
-          } catch (detailError) {
-            console.log(`⚠️ Could not fetch details for order ${order.order_id}:`, detailError.message);
-          }
-        }
-      }
-      
     } catch (parseError) {
       console.error('❌ Orders JSON parse error:', parseError);
       data = [];
