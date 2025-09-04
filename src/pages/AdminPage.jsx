@@ -963,6 +963,7 @@ const updateOrderStatus = async (orderId, newStatus) => {
       alert("Keranjang kosong.");
       return;
     }
+    
     const items = (editOrderCart || [])
       .map((it) => ({
         id_menu: Number(it.id_menu) || 0,
@@ -973,52 +974,79 @@ const updateOrderStatus = async (orderId, newStatus) => {
       .filter((x) => x.id_menu > 0 && x.quantity > 0);
 
     const payload = { items, note: editOrderNote || "" };
-    let resp = await fetch(
-      `${apiBaseUrl}/orders/${selectedOrderForDetail.order_id}?t=${Date.now()}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-        },
-        cache: "no-store",
-        body: JSON.stringify(payload),
-      }
-    );
-
-    // fallback route
-    if (resp.status === 404) {
-      resp = await fetch(
-        `${apiBaseUrl}/orders/update/${selectedOrderForDetail.order_id}?t=${Date.now()}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "Cache-Control": "no-cache",
-          },
-          cache: "no-store",
-          body: JSON.stringify(payload),
+    
+    console.log('Attempting to update order:', selectedOrderForDetail.order_id);
+    console.log('Update payload:', payload);
+    
+    try {
+      // Try different possible API endpoints
+      const possibleEndpoints = [
+        `${apiBaseUrl}/orders/${selectedOrderForDetail.order_id}`,
+        `${apiBaseUrl}/orders/update/${selectedOrderForDetail.order_id}`,
+        `${apiBaseUrl}/order/${selectedOrderForDetail.order_id}`,
+        `${apiBaseUrl}/order/update/${selectedOrderForDetail.order_id}`,
+      ];
+      
+      let resp = null;
+      let lastError = null;
+      
+      for (const endpoint of possibleEndpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`);
+          resp = await fetch(`${endpoint}?t=${Date.now()}`, {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              "Cache-Control": "no-cache",
+            },
+            cache: "no-store",
+            body: JSON.stringify(payload),
+          });
+          
+          console.log(`Response status for ${endpoint}:`, resp.status);
+          
+          if (resp.ok) {
+            console.log(`Success with endpoint: ${endpoint}`);
+            break;
+          } else if (resp.status !== 404) {
+            // If it's not 404, it means the endpoint exists but there's another error
+            const errorText = await resp.text();
+            console.log(`Non-404 error from ${endpoint}:`, errorText);
+            throw new Error(`HTTP ${resp.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.log(`Error with endpoint ${endpoint}:`, error.message);
+          lastError = error;
+          continue;
         }
-      );
-    }
+      }
+      
+      if (!resp || !resp.ok) {
+        throw new Error(lastError?.message || 'All API endpoints failed. Please check server configuration.');
+      }
 
-    if (!resp.ok) {
-      let msg = await resp.text();
-      try {
-        const j = JSON.parse(msg);
-        msg = j.message || msg;
-      } catch {}
-      alert(`Gagal memperbarui pesanan: ${msg}`);
-      return;
+      alert(`Pesanan #${selectedOrderForDetail.order_id} berhasil diperbarui!`);
+      closeEditOrder();
+      await fetchOrders(true);
+      
+    } catch (error) {
+      console.error('Update order error:', error);
+      
+      // Show more helpful error message
+      let errorMessage = `Gagal memperbarui pesanan: ${error.message}`;
+      
+      if (error.message.includes('All API endpoints failed')) {
+        errorMessage += '\n\nKemungkinan penyebab:\n';
+        errorMessage += '1. API endpoint untuk update pesanan belum tersedia di server\n';
+        errorMessage += '2. Pesanan dengan ID tersebut tidak ditemukan\n';
+        errorMessage += '3. Server sedang mengalami masalah\n\n';
+        errorMessage += 'Silakan hubungi administrator sistem.';
+      }
+      
+      alert(errorMessage);
     }
-
-    alert(`Pesanan #${selectedOrderForDetail.order_id} berhasil diperbarui!`);
-    closeEditOrder();
-    fetchOrders(true);
   };
 
   // ====== Kasir - order baru
