@@ -325,7 +325,7 @@ const AdminPage = () => {
     }
   };
 
-// FIXED fetchOrders function - ganti function yang ada di AdminPage.jsx
+// FIXED fetchOrders function - dengan fallback untuk missing items
 const fetchOrders = async (force = false) => {
   console.log('📋 fetchOrders called, token:', !!token, 'force:', force);
   
@@ -392,6 +392,40 @@ const fetchOrders = async (force = false) => {
       const parsed = JSON.parse(responseText);
       data = Array.isArray(parsed) ? parsed : [];
       console.log('📋 Orders parsed successfully:', data.length, 'orders');
+      
+      // WORKAROUND: Fetch individual order items for orders with missing items
+      const ordersWithMissingItems = data.filter(order => {
+        const items = normalizeOrderItems(order.items);
+        return !items || items.length === 0;
+      });
+      
+      if (ordersWithMissingItems.length > 0) {
+        console.log('🔧 Found orders with missing items, attempting to fetch details:', ordersWithMissingItems.map(o => o.order_id));
+        
+        // Try to fetch items for each order individually
+        for (const order of ordersWithMissingItems) {
+          try {
+            const detailResp = await fetch(`${apiBaseUrl}/orders/${order.order_id}?t=${Date.now()}`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/json",
+              },
+              signal: controller.signal,
+            });
+            
+            if (detailResp.ok) {
+              const detailData = await detailResp.json();
+              if (detailData.items) {
+                order.items = detailData.items;
+                console.log(`✅ Retrieved items for order ${order.order_id}:`, detailData.items);
+              }
+            }
+          } catch (detailError) {
+            console.log(`⚠️ Could not fetch details for order ${order.order_id}:`, detailError.message);
+          }
+        }
+      }
+      
     } catch (parseError) {
       console.error('❌ Orders JSON parse error:', parseError);
       data = [];
@@ -964,6 +998,17 @@ const updateOrderStatus = async (orderId, newStatus) => {
       return;
     }
     
+    // Show confirmation before attempting update
+    const confirmUpdate = window.confirm(
+      `Apakah Anda yakin ingin memperbarui pesanan #${selectedOrderForDetail.order_id}?\n\n` +
+      `PERINGATAN: Fitur update pesanan mungkin belum tersedia di server.\n` +
+      `Jika update gagal, data pesanan tidak akan berubah.`
+    );
+    
+    if (!confirmUpdate) {
+      return;
+    }
+    
     const items = (editOrderCart || [])
       .map((it) => ({
         id_menu: Number(it.id_menu) || 0,
@@ -979,52 +1024,27 @@ const updateOrderStatus = async (orderId, newStatus) => {
     console.log('Update payload:', payload);
     
     try {
-      // Try different possible API endpoints
-      const possibleEndpoints = [
-        `${apiBaseUrl}/orders/${selectedOrderForDetail.order_id}`,
-        `${apiBaseUrl}/orders/update/${selectedOrderForDetail.order_id}`,
-        `${apiBaseUrl}/order/${selectedOrderForDetail.order_id}`,
-        `${apiBaseUrl}/order/update/${selectedOrderForDetail.order_id}`,
-      ];
+      // Try the most likely endpoint first
+      let resp = await fetch(`${apiBaseUrl}/orders/${selectedOrderForDetail.order_id}?t=${Date.now()}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Cache-Control": "no-cache",
+        },
+        cache: "no-store",
+        body: JSON.stringify(payload),
+      });
       
-      let resp = null;
-      let lastError = null;
+      console.log(`Primary endpoint response status:`, resp.status);
       
-      for (const endpoint of possibleEndpoints) {
-        try {
-          console.log(`Trying endpoint: ${endpoint}`);
-          resp = await fetch(`${endpoint}?t=${Date.now()}`, {
-            method: "PUT",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              "Cache-Control": "no-cache",
-            },
-            cache: "no-store",
-            body: JSON.stringify(payload),
-          });
-          
-          console.log(`Response status for ${endpoint}:`, resp.status);
-          
-          if (resp.ok) {
-            console.log(`Success with endpoint: ${endpoint}`);
-            break;
-          } else if (resp.status !== 404) {
-            // If it's not 404, it means the endpoint exists but there's another error
-            const errorText = await resp.text();
-            console.log(`Non-404 error from ${endpoint}:`, errorText);
-            throw new Error(`HTTP ${resp.status}: ${errorText}`);
-          }
-        } catch (error) {
-          console.log(`Error with endpoint ${endpoint}:`, error.message);
-          lastError = error;
-          continue;
-        }
-      }
-      
-      if (!resp || !resp.ok) {
-        throw new Error(lastError?.message || 'All API endpoints failed. Please check server configuration.');
+      if (!resp.ok) {
+        // If primary fails, inform user immediately
+        const errorText = await resp.text();
+        console.log('Primary endpoint error:', errorText);
+        
+        throw new Error(`Update pesanan gagal.\n\nDetail teknis:\n- Endpoint: /orders/${selectedOrderForDetail.order_id}\n- Status: ${resp.status}\n- Error: ${errorText || 'No error message'}\n\nKemungkinan:\n1. API update belum diimplementasi di server\n2. Pesanan tidak dapat diubah\n3. Masalah server\n\nSilakan hubungi administrator sistem.`);
       }
 
       alert(`Pesanan #${selectedOrderForDetail.order_id} berhasil diperbarui!`);
@@ -1034,18 +1054,11 @@ const updateOrderStatus = async (orderId, newStatus) => {
     } catch (error) {
       console.error('Update order error:', error);
       
-      // Show more helpful error message
-      let errorMessage = `Gagal memperbarui pesanan: ${error.message}`;
+      // Close modal but don't refresh to preserve current state
+      closeEditOrder();
       
-      if (error.message.includes('All API endpoints failed')) {
-        errorMessage += '\n\nKemungkinan penyebab:\n';
-        errorMessage += '1. API endpoint untuk update pesanan belum tersedia di server\n';
-        errorMessage += '2. Pesanan dengan ID tersebut tidak ditemukan\n';
-        errorMessage += '3. Server sedang mengalami masalah\n\n';
-        errorMessage += 'Silakan hubungi administrator sistem.';
-      }
-      
-      alert(errorMessage);
+      // Show detailed error
+      alert(error.message || 'Gagal memperbarui pesanan');
     }
   };
 
