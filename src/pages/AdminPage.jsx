@@ -882,6 +882,40 @@ const updateOrderStatus = async (orderId, newStatus) => {
   }
 };
 
+  const findEditOrderCartItem = (itemId, options) =>
+    (editOrderCart || []).find(
+      (c) =>
+        c?.id_menu === itemId &&
+        (c.options?.spiciness || "") === (options?.spiciness || "") &&
+        (c.options?.temperature || "") === (options?.temperature || "")
+    );
+
+  const addItemToEditOrderCart = (item) => {
+    if (!item?.id_menu) return;
+    const opts = editOrderItemSelections[item.id_menu] || {
+      spiciness: "",
+      temperature: "",
+    };
+    setEditOrderCart((prev) => {
+      const exist = findEditOrderCartItem(item.id_menu, opts);
+      if (exist) {
+        return prev.map((c) =>
+          c === exist ? { ...c, quantity: (c.quantity || 0) + 1 } : c
+        );
+      }
+      return [
+        ...prev,
+        {
+          id_menu: item.id_menu,
+          name: item.name || "Unknown Item",
+          price: item.price || 0,
+          quantity: 1,
+          options: { ...opts },
+        },
+      ];
+    });
+  };
+
   const removeItemFromEditOrderCart = (item) => {
     if (!item?.id_menu) return;
     setEditOrderCart((prev) => {
@@ -911,6 +945,14 @@ const updateOrderStatus = async (orderId, newStatus) => {
       (s, it) => s + (Number(it?.price || 0) * Number(it?.quantity || 0)),
       0
     );
+
+  const closeEditOrder = () => {
+    setIsEditOrderModalOpen(false);
+    setSelectedOrderForDetail(null);
+    setEditOrderCart([]);
+    setEditOrderItemSelections({});
+    setEditOrderNote("");
+  };
 
   const handleSaveEditOrder = async () => {
     if (!selectedOrderForDetail?.order_id) {
