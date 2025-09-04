@@ -1749,16 +1749,12 @@ const showEditOrder = (order) => {
                                     Bayar
                                   </button>
                                 )}
-                                // Ganti button Edit dengan ini untuk test:
-                                <button
-                                  onClick={() => {
-                                    console.log('Edit button clicked for order:', order.order_id);
-                                    alert(`Edit order ${order.order_id} - Function sedang diperbaiki`);
-                                  }}
-                                  className="order-action-button btn-warning"
-                                >
-                                  Edit Test
-                                </button>
+<button
+  onClick={() => showEditOrder(order)}
+  className="order-action-button btn-warning"
+>
+  Edit
+</button>
                                 {order.payment_status === "Sudah Bayar" && (
                                   <button
                                     onClick={() =>
@@ -2211,467 +2207,401 @@ const showEditOrder = (order) => {
         )}
       </div>
 
-      {/* Edit Order Modal */}
-      {isEditOrderModalOpen && selectedOrderForDetail && (
-        <div className="edit-order-modal-overlay">
-          <div className="edit-order-container">
-            <div className="edit-order-header">
-              <button className="back-btn" onClick={() => {
-                setIsEditOrderModalOpen(false);
-                setSelectedOrderForDetail(null);
-                setEditOrderCart([]);
-                setEditOrderItemSelections({});
-                setEditOrderNote("");
-              }}>
-                ←
-              </button>
-              <h2>Edit Pesanan #{selectedOrderForDetail.order_id || "N/A"}</h2>
-            </div>
+{/* Edit Order Modal */}
+{isEditOrderModalOpen && selectedOrderForDetail && (
+  <div className="edit-order-modal-overlay">
+    <div className="edit-order-container">
+      <div className="edit-order-header">
+        <button className="back-btn" onClick={closeEditOrder}>
+          ←
+        </button>
+        <h2>Edit Pesanan #{selectedOrderForDetail.order_id || "N/A"}</h2>
+      </div>
 
-            <div className="edit-alert">
-              <strong>Info:</strong> Anda sedang mengedit pesanan yang sudah ada.
-            </div>
+      <div className="edit-alert">
+        <strong>Info:</strong> Anda sedang mengedit pesanan yang sudah ada.
+      </div>
 
-            <div className="edit-menu-section">
-              <div className="edit-section-title">Menu Tersedia</div>
+      <div className="edit-menu-section">
+        <div className="edit-section-title">Menu Tersedia</div>
 
-              {Object.entries(groupMenuByCategory(menuItems)).map(
-                ([category, categoryItems]) => (
-                  <div
-                    key={category}
-                    className="edit-menu-category-section"
-                    style={{
-                      marginBottom: 25,
-                      border: "2px solid #27ae60",
-                      borderRadius: 10,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <h3
-                      className="edit-category-title"
-                      style={{
-                        background: "#f8f9fa",
-                        padding: "12px 20px",
-                        margin: 0,
-                        borderBottom: "1px solid #e0e0e0",
-                        textTransform: "uppercase",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {getCategoryDisplayName(category)}
-                    </h3>
+        {Object.entries(groupMenuByCategory(menuItems)).map(
+          ([category, categoryItems]) => (
+            <div
+              key={category}
+              className="edit-menu-category-section"
+              style={{
+                marginBottom: 25,
+                border: "2px solid #27ae60",
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              <h3
+                className="edit-category-title"
+                style={{
+                  background: "#f8f9fa",
+                  padding: "12px 20px",
+                  margin: 0,
+                  borderBottom: "1px solid #e0e0e0",
+                  textTransform: "uppercase",
+                  fontWeight: "bold",
+                }}
+              >
+                {getCategoryDisplayName(category)}
+              </h3>
 
+              <div
+                className="edit-menu-category-content"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: 15,
+                  padding: 20,
+                  background: "#f1f3f4",
+                  border: "2px dashed #ff6b6b",
+                }}
+              >
+                {categoryItems.map((item) => {
+                  if (!item?.id_menu) return null;
+                  const currentOpts =
+                    editOrderItemSelections[item.id_menu] || {
+                      spiciness: "",
+                      temperature: "",
+                    };
+                  const qty =
+                    findEditOrderCartItem(item.id_menu, currentOpts)?.quantity || 0;
+
+                  return (
                     <div
-                      className="edit-menu-category-content"
+                      key={item.id_menu}
+                      className={`edit-menu-item ${qty > 0 ? "selected" : ""}`}
                       style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                        gap: 15,
-                        padding: 20,
-                        background: "#f1f3f4",
-                        border: "2px dashed #ff6b6b",
+                        display: "flex",
+                        flexDirection: "column",
+                        padding: 15,
+                        background: qty > 0 ? "#e8f4fd" : "#fff",
+                        borderRadius: 10,
+                        border: `2px solid ${qty > 0 ? "#3498db" : "#e0e0e0"}`,
+                        minHeight: 160,
+                        cursor: "pointer",
+                        transition: "all .2s ease",
+                        position: "relative",
+                        gap: 10,
                       }}
                     >
-                      {categoryItems.map((item) => {
-                        if (!item?.id_menu) return null;
-                        const currentOpts =
-                          editOrderItemSelections[item.id_menu] || {
-                            spiciness: "",
-                            temperature: "",
-                          };
-                        const qty =
-                          findEditOrderCartItem(item.id_menu, currentOpts)?.quantity || 0;
+                      <div
+                        className="edit-menu-item-header"
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <span
+                          className="edit-menu-item-name"
+                          style={{
+                            fontWeight: 600,
+                            color: "#2c3e50",
+                            fontSize: "0.95em",
+                            flex: 1,
+                            marginRight: 8,
+                          }}
+                        >
+                          {item.name || "Unknown Item"}
+                        </span>
+                        <span
+                          className="edit-menu-item-price"
+                          style={{
+                            color: "#27ae60",
+                            fontWeight: "bold",
+                            fontSize: "0.95em",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Rp {formatPrice(item.price)}
+                        </span>
+                      </div>
 
-                        return (
-                          <div
-                            key={item.id_menu}
-                            className={`edit-menu-item ${qty > 0 ? "selected" : ""}`}
+                      {item.category?.startsWith("menu mie") && (
+                        <div
+                          className="edit-item-options-group"
+                          style={{
+                            margin: "8px 0",
+                            padding: 8,
+                            background: "#f9f9f9",
+                            borderRadius: 6,
+                            border: "1px solid #e0e0e0",
+                          }}
+                        >
+                          <p
+                            className="edit-option-label"
                             style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              padding: 15,
-                              background: qty > 0 ? "#e8f4fd" : "#fff",
-                              borderRadius: 10,
-                              border: `2px solid ${qty > 0 ? "#3498db" : "#e0e0e0"}`,
-                              minHeight: 160,
-                              cursor: "pointer",
-                              transition: "all .2s ease",
-                              position: "relative",
-                              gap: 10,
+                              fontWeight: 600,
+                              color: "#2c3e50",
+                              marginBottom: 6,
+                              fontSize: "0.85em",
                             }}
                           >
-                            <div
-                              className="edit-menu-item-header"
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "flex-start",
-                                marginBottom: 8,
-                              }}
-                            >
-                              <span
-                                className="edit-menu-item-name"
-                                style={{
-                                  fontWeight: 600,
-                                  color: "#2c3e50",
-                                  fontSize: "0.95em",
-                                  flex: 1,
-                                  marginRight: 8,
-                                }}
-                              >
-                                {item.name || "Unknown Item"}
-                              </span>
-                              <span
-                                className="edit-menu-item-price"
-                                style={{
-                                  color: "#27ae60",
-                                  fontWeight: "bold",
-                                  fontSize: "0.95em",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                Rp {formatPrice(item.price)}
-                              </span>
-                            </div>
-
-                            {item.category?.startsWith("menu mie") && (
-                              <div
-                                className="edit-item-options-group"
-                                style={{
-                                  margin: "8px 0",
-                                  padding: 8,
-                                  background: "#f9f9f9",
-                                  borderRadius: 6,
-                                  border: "1px solid #e0e0e0",
-                                }}
-                              >
-                                <p
-                                  className="edit-option-label"
-                                  style={{
-                                    fontWeight: 600,
-                                    color: "#2c3e50",
-                                    marginBottom: 6,
-                                    fontSize: "0.85em",
-                                  }}
-                                >
-                                  Kepedasan:
-                                </p>
-                                <div
-                                  className="edit-radio-group"
-                                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                                >
-                                  <label
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 6,
-                                      cursor: "pointer",
-                                      fontSize: "0.8em",
-                                      padding: "4px 8px",
-                                      borderRadius: 12,
-                                      background: "#fff",
-                                      border: "1px solid #ddd",
-                                    }}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={`edit-spiciness-${item.id_menu}`}
-                                      value="tidak pedas"
-                                      checked={currentOpts.spiciness === "tidak pedas"}
-                                      onChange={() =>
-                                        handleEditOrderOptionChange(
-                                          item.id_menu,
-                                          "spiciness",
-                                          "tidak pedas"
-                                        )
-                                      }
-                                    />{" "}
-                                    Tidak Pedas
-                                  </label>
-                                  <label
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 6,
-                                      cursor: "pointer",
-                                      fontSize: "0.8em",
-                                      padding: "4px 8px",
-                                      borderRadius: 12,
-                                      background: "#fff",
-                                      border: "1px solid #ddd",
-                                    }}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={`edit-spiciness-${item.id_menu}`}
-                                      value="pedas sedang"
-                                      checked={currentOpts.spiciness === "pedas sedang"}
-                                      onChange={() =>
-                                        handleEditOrderOptionChange(
-                                          item.id_menu,
-                                          "spiciness",
-                                          "pedas sedang"
-                                        )
-                                      }
-                                    />{" "}
-                                    Pedas Sedang
-                                  </label>
-                                  <label
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 6,
-                                      cursor: "pointer",
-                                      fontSize: "0.8em",
-                                      padding: "4px 8px",
-                                      borderRadius: 12,
-                                      background: "#fff",
-                                      border: "1px solid #ddd",
-                                    }}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={`edit-spiciness-${item.id_menu}`}
-                                      value="pedas"
-                                      checked={currentOpts.spiciness === "pedas"}
-                                      onChange={() =>
-                                        handleEditOrderOptionChange(
-                                          item.id_menu,
-                                          "spiciness",
-                                          "pedas"
-                                        )
-                                      }
-                                    />{" "}
-                                    Pedas
-                                  </label>
-                                </div>
-                              </div>
-                            )}
-
-                            {item.category?.startsWith("minuman") && (
-                              <div
-                                className="edit-item-options-group"
-                                style={{
-                                  margin: "8px 0",
-                                  padding: 8,
-                                  background: "#f9f9f9",
-                                  borderRadius: 6,
-                                  border: "1px solid #e0e0e0",
-                                }}
-                              >
-                                <p
-                                  className="edit-option-label"
-                                  style={{
-                                    fontWeight: 600,
-                                    color: "#2c3e50",
-                                    marginBottom: 6,
-                                    fontSize: "0.85em",
-                                  }}
-                                >
-                                  Suhu:
-                                </p>
-                                <div
-                                  className="edit-radio-group"
-                                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                                >
-                                  <label
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 6,
-                                      cursor: "pointer",
-                                      fontSize: "0.8em",
-                                      padding: "4px 8px",
-                                      borderRadius: 12,
-                                      background: "#fff",
-                                      border: "1px solid #ddd",
-                                    }}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={`edit-temperature-${item.id_menu}`}
-                                      value="dingin"
-                                      checked={currentOpts.temperature === "dingin"}
-                                      onChange={() =>
-                                        handleEditOrderOptionChange(
-                                          item.id_menu,
-                                          "temperature",
-                                          "dingin"
-                                        )
-                                      }
-                                    />{" "}
-                                    Dingin
-                                  </label>
-                                  <label
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 6,
-                                      cursor: "pointer",
-                                      fontSize: "0.8em",
-                                      padding: "4px 8px",
-                                      borderRadius: 12,
-                                      background: "#fff",
-                                      border: "1px solid #ddd",
-                                    }}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={`edit-temperature-${item.id_menu}`}
-                                      value="tidak dingin"
-                                      checked={currentOpts.temperature === "tidak dingin"}
-                                      onChange={() =>
-                                        handleEditOrderOptionChange(
-                                          item.id_menu,
-                                          "temperature",
-                                          "tidak dingin"
-                                        )
-                                      }
-                                    />{" "}
-                                    Tidak Dingin
-                                  </label>
-                                </div>
-                              </div>
-                            )}
-
-                            <div
-                              className="edit-quantity-controls"
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                marginTop: "auto",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <button
-                                className="edit-qty-btn"
-                                onClick={() =>
-                                  removeItemFromEditOrderCart({
-                                    id_menu: item.id_menu,
-                                    options: currentOpts,
-                                  })
+                            Kepedasan:
+                          </p>
+                          <div
+                            className="edit-radio-group"
+                            style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                          >
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-spiciness-${item.id_menu}`}
+                                value="tidak pedas"
+                                checked={currentOpts.spiciness === "tidak pedas"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "spiciness",
+                                    "tidak pedas"
+                                  )
                                 }
-                                disabled={qty === 0}
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  border: "1px solid #ddd",
-                                  background: "#fff",
-                                  borderRadius: "50%",
-                                  fontSize: "1em",
-                                  fontWeight: "bold",
-                                  cursor: qty === 0 ? "not-allowed" : "pointer",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  opacity: qty === 0 ? 0.5 : 1,
-                                }}
-                              >
-                                -
-                              </button>
-                              <span
-                                className="edit-qty-display"
-                                style={{
-                                  fontSize: "1em",
-                                  fontWeight: "bold",
-                                  color: "#2c3e50",
-                                  minWidth: 24,
-                                  textAlign: "center",
-                                  padding: 6,
-                                  background: "#f8f9fa",
-                                  borderRadius: 6,
-                                  border: "1px solid #e0e0e0",
-                                }}
-                              >
-                                {qty}
-                              </span>
-                              <button
-                                className="edit-qty-btn"
-                                onClick={() => addItemToEditOrderCart(item)}
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  border: "1px solid #ddd",
-                                  background: "#fff",
-                                  borderRadius: "50%",
-                                  fontSize: "1em",
-                                  fontWeight: "bold",
-                                  cursor: "pointer",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                +
-                              </button>
-                            </div>
+                              />
+                              Tidak Pedas
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-spiciness-${item.id_menu}`}
+                                value="pedas sedang"
+                                checked={currentOpts.spiciness === "pedas sedang"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "spiciness",
+                                    "pedas sedang"
+                                  )
+                                }
+                              />
+                              Pedas Sedang
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-spiciness-${item.id_menu}`}
+                                value="pedas"
+                                checked={currentOpts.spiciness === "pedas"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "spiciness",
+                                    "pedas"
+                                  )
+                                }
+                              />
+                              Pedas
+                            </label>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )
-              )}
-
-              <div className="edit-note-section">
-                <label htmlFor="editOrderNote" className="edit-section-title">
-                  Catatan Pesanan:
-                </label>
-                <textarea
-                  id="editOrderNote"
-                  className="edit-note-input"
-                  placeholder="Tambahkan catatan untuk pesanan ini..."
-                  value={editOrderNote}
-                  onChange={(e) => setEditOrderNote(e.target.value)}
-                />
-              </div>
-
-              <div className="edit-order-summary">
-                <div className="edit-section-title">Ringkasan Pesanan</div>
-                <div className="edit-summary-list">
-                  {editOrderCart.length === 0 ? (
-                    <p>Keranjang kosong</p>
-                  ) : (
-                    editOrderCart.map((item, i) => {
-                      const key = `${item.id_menu}-${item.options?.spiciness || ""}-${item.options?.temperature || ""}-${i}`;
-                      return (
-                        <div key={key} className="edit-summary-item">
-                          <span>
-                            {item.quantity || 0}x {item.name || "Unknown Item"}
-                          </span>
-                          <span>
-                            Rp {formatPrice(Number(item.price || 0) * Number(item.quantity || 0))}
-                          </span>
-                          {(item.options?.spiciness || item.options?.temperature) && (
-                            <div className="edit-summary-options">
-                              {item.options?.spiciness && <span>({item.options.spiciness})</span>}
-                              {item.options?.temperature && <span>({item.options.temperature})</span>}
-                            </div>
-                          )}
                         </div>
-                      );
-                    })
-                  )}
-                </div>
+                      )}
 
-                <div className="edit-summary-total">
-                  <span>Total:</span>
-                  <span>Rp {formatPrice(getEditOrderTotalPrice())}</span>
-                </div>
+                      {item.category?.startsWith("minuman") && (
+                        <div
+                          className="edit-item-options-group"
+                          style={{
+                            margin: "8px 0",
+                            padding: 8,
+                            background: "#f9f9f9",
+                            borderRadius: 6,
+                            border: "1px solid #e0e0e0",
+                          }}
+                        >
+                          <p
+                            className="edit-option-label"
+                            style={{
+                              fontWeight: 600,
+                              color: "#2c3e50",
+                              marginBottom: 6,
+                              fontSize: "0.85em",
+                            }}
+                          >
+                            Suhu:
+                          </p>
+                          <div
+                            className="edit-radio-group"
+                            style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                          >
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-temperature-${item.id_menu}`}
+                                value="dingin"
+                                checked={currentOpts.temperature === "dingin"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "temperature",
+                                    "dingin"
+                                  )
+                                }
+                              />
+                              Dingin
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-temperature-${item.id_menu}`}
+                                value="tidak dingin"
+                                checked={currentOpts.temperature === "tidak dingin"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "temperature",
+                                    "tidak dingin"
+                                  )
+                                }
+                              />
+                              Tidak Dingin
+                            </label>
+                          </div>
+                        </div>
+                      )}
 
-                <button
-                  className="edit-save-btn"
-                  onClick={handleSaveEditOrder}
-                  disabled={getEditOrderTotalItems() === 0}
-                >
-                  Simpan Perubahan
-                </button>
+                      <div
+                        className="edit-quantity-controls"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          marginTop: "auto",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <button
+                          className="edit-qty-btn"
+                          onClick={() =>
+                            removeItemFromEditOrderCart({
+                              id_menu: item.id_menu,
+                              options: currentOpts,
+                            })
+                          }
+                          disabled={qty === 0}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            border: "1px solid #ddd",
+                            background: "#fff",
+                            borderRadius: "50%",
+                            fontSize: "1em",
+                            fontWeight: "bold",
+                            cursor: qty === 0 ? "not-allowed" : "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            opacity: qty === 0 ? 0.5 : 1,
+                          }}
+                        >
+                          -
+                        </button>
+                        <span
+                          className="edit-qty-display"
+                          style={{
+                            fontSize: "1em",
+                            fontWeight: "bold",
+                            color: "#2c3e50",
+                            minWidth: 24,
+                            textAlign: "center",
+                            padding: 6,
+                            background: "#f8f9fa",
+                            borderRadius: 6,
+                            border: "1px solid #e0e0e0",
+                          }}
+                        >
+                          {qty}
+                        </span>
+                        <button
+                          className="edit-qty-btn"
+                          onClick={() => addItemToEditOrderCart(item)}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            border: "1px solid #ddd",
+                            background: "#fff",
+                            borderRadius: "50%",
+                            fontSize: "1em",
+                            fontWeight: "bold",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
+          )
+        )}
+
+        <div className="edit-note-section">
+          <label htmlFor="editOrderNote" className="edit-section-title">
+            Catatan Pesanan:
+          </label>
+          <textarea
+            id="editOrderNote"
+            className="edit-note-input"
+            placeholder="Tambahkan catatan untuk pesanan ini..."
+            value={editOrderNote}
+            onChange={(e) => setEditOrderNote(e.target.value)}
+          />
         </div>
-      )}
+
+        <div className="edit-order-summary">
+          <div className="edit-section-title">Ringkasan Pesanan</div>
+          <div className="edit-summary-list">
+            {editOrderCart.length === 0 ? (
+              <p>Keranjang kosong</p>
+            ) : (
+              editOrderCart.map((item, i) => {
+                const key = `${item.id_menu}-${item.options?.spiciness || ""}-${item.options?.temperature || ""}-${i}`;
+                return (
+                  <div key={key} className="edit-summary-item">
+                    <span>
+                      {item.quantity || 0}x {item.name || "Unknown Item"}
+                    </span>
+                    <span>
+                      Rp {formatPrice(Number(item.price || 0) * Number(item.quantity || 0))}
+                    </span>
+                    {(item.options?.spiciness || item.options?.temperature) && (
+                      <div className="edit-summary-options">
+                        {item.options?.spiciness && <span>({item.options.spiciness})</span>}
+                        {item.options?.temperature && <span>({item.options.temperature})</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="edit-summary-total">
+            <span>Total:</span>
+            <span>Rp {formatPrice(getEditOrderTotalPrice())}</span>
+          </div>
+
+          <button
+            className="edit-save-btn"
+            onClick={handleSaveEditOrder}
+            disabled={getEditOrderTotalItems() === 0}
+          >
+            Simpan Perubahan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Payment Modal */}
       <PaymentModal
