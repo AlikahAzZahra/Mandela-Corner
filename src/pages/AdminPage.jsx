@@ -1749,11 +1749,15 @@ const showEditOrder = (order) => {
                                     Bayar
                                   </button>
                                 )}
+                                // Ganti button Edit dengan ini untuk test:
                                 <button
-                                  onClick={() => showEditOrder(order)}
+                                  onClick={() => {
+                                    console.log('Edit button clicked for order:', order.order_id);
+                                    alert(`Edit order ${order.order_id} - Function sedang diperbaiki`);
+                                  }}
                                   className="order-action-button btn-warning"
                                 >
-                                  Edit
+                                  Edit Test
                                 </button>
                                 {order.payment_status === "Sudah Bayar" && (
                                   <button
