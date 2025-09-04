@@ -1775,34 +1775,70 @@ const showEditOrder = (order) => {
 
                         <div className="order-items-section">
                           <div className="order-items-header">Item Pesanan:</div>
-                          <ul className="order-items-list">
-                            {orderItems.map((i, ii) => {
-                              if (!i) return null;
-                              const qty = Number(i?.quantity) || 0;
-                              const each = Number(i?.price_at_order ?? i?.price ?? 0);
-                              const name = i?.menu_name ?? i?.name ?? "Unknown Item";
-                              const spice = i?.spiciness_level ?? i?.spiciness;
-                              const temp = i?.temperature_level ?? i?.temperature;
+                          {(() => {
+                            console.log('🔍 Raw order items data:', order.items);
+                            const orderItems = normalizeOrderItems(order.items);
+                            console.log('🔍 Normalized order items:', orderItems);
+                            
+                            if (!orderItems || orderItems.length === 0) {
                               return (
-                                <li key={ii} className="order-item-detail">
-                                  <div className="order-item-info">
-                                    <span className="order-item-name">
-                                      {qty}x {name}
-                                    </span>
-                                    {(spice || temp) && (
-                                      <div className="order-item-options">
-                                        {spice && <span className="order-item-option">({spice})</span>}
-                                        {temp && <span className="order-item-option">({temp})</span>}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="order-item-price">
-                                    Rp {formatPrice(qty * each)}
-                                  </div>
-                                </li>
+                                <div className="no-items-message" style={{
+                                  padding: '10px',
+                                  color: '#999',
+                                  fontStyle: 'italic',
+                                  border: '1px dashed #ddd',
+                                  borderRadius: '4px',
+                                  margin: '10px 0'
+                                }}>
+                                  Tidak ada item pesanan atau data tidak valid
+                                  <br />
+                                  <small>Raw data: {JSON.stringify(order.items)}</small>
+                                </div>
                               );
-                            })}
-                          </ul>
+                            }
+                            
+                            return (
+                              <ul className="order-items-list">
+                                {orderItems.map((i, ii) => {
+                                  console.log('🔍 Processing item:', i);
+                                  if (!i) {
+                                    return (
+                                      <li key={ii} className="order-item-detail" style={{color: '#999', fontStyle: 'italic'}}>
+                                        Item {ii + 1}: Data tidak valid
+                                      </li>
+                                    );
+                                  }
+                                  
+                                  const qty = Number(i?.quantity) || 0;
+                                  const each = Number(i?.price_at_order ?? i?.price ?? 0);
+                                  const name = i?.menu_name ?? i?.name ?? "Unknown Item";
+                                  const spice = i?.spiciness_level ?? i?.spiciness;
+                                  const temp = i?.temperature_level ?? i?.temperature;
+                                  
+                                  console.log('🔍 Item details:', {qty, each, name, spice, temp});
+                                  
+                                  return (
+                                    <li key={ii} className="order-item-detail">
+                                      <div className="order-item-info">
+                                        <span className="order-item-name">
+                                          {qty}x {name}
+                                        </span>
+                                        {(spice || temp) && (
+                                          <div className="order-item-options">
+                                            {spice && <span className="order-item-option">({spice})</span>}
+                                            {temp && <span className="order-item-option">({temp})</span>}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="order-item-price">
+                                        Rp {formatPrice(qty * each)}
+                                      </div>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            );
+                          })()}
                         </div>
 
                         <div className="order-actions">
