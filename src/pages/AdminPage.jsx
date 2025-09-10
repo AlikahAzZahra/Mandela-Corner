@@ -326,22 +326,24 @@ const AdminPage = () => {
   };
 
 // FIXED fetchOrders function - removed individual order fetching workaround
+// Tambahkan di AdminPage.jsx - ganti bagian fetchOrders function:
+
 const fetchOrders = async (force = false) => {
-  console.log('📋 fetchOrders called, token:', !!token, 'force:', force);
+  console.log('Fetching orders, token:', !!token, 'force:', force);
   
   if (!token) {
-    console.log('❌ No token available for fetchOrders');
+    console.log('No token available');
     return;
   }
   
   if (ordersInFlightRef.current && !force) {
-    console.log('⚠️ Orders request already in flight, skipping...');
+    console.log('Request already in flight, skipping...');
     return;
   }
 
   if (ordersAbortRef.current) {
     try {
-      ordersAbortRef.current.abort('New request initiated');
+      ordersAbortRef.current.abort('New request');
     } catch (err) {
       console.log('Previous request cleanup completed');
     }
@@ -352,15 +354,14 @@ const fetchOrders = async (force = false) => {
   ordersAbortRef.current = controller;
   
   const timeoutId = setTimeout(() => {
-    console.log('⏱️ Request timeout, aborting...');
-    controller.abort('Request timeout after 30 seconds');
+    console.log('Request timeout, aborting...');
+    controller.abort('Request timeout');
   }, 30000);
 
   try {
-    console.log('🔄 Fetching orders...');
-    const url = `${apiBaseUrl}/orders?t=${Date.now()}${force ? "&force=1" : ""}`;
+    console.log('Making API request to:', `${apiBaseUrl}/orders`);
     
-    const resp = await fetch(url, {
+    const resp = await fetch(`${apiBaseUrl}/orders?t=${Date.now()}${force ? "&force=1" : ""}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -373,42 +374,48 @@ const fetchOrders = async (force = false) => {
       signal: controller.signal,
     });
 
-    console.log('📋 Orders response status:', resp.status);
+    console.log('Response status:', resp.status);
+    console.log('Response headers:', resp.headers);
     
     if (!resp.ok) {
       if (resp.status === 401 || resp.status === 403) {
-        console.log('🔐 Authentication failed in fetchOrders');
+        console.log('Authentication failed');
         handleLogout();
         return;
       }
-      throw new Error(`HTTP ${resp.status}`);
+      
+      const errorText = await resp.text();
+      console.error('API Error:', errorText);
+      throw new Error(`HTTP ${resp.status}: ${errorText}`);
     }
 
     const responseText = await resp.text();
-    console.log('📋 Orders response length:', responseText.length);
+    console.log('Response received, length:', responseText.length);
     
     let data = [];
     try {
       const parsed = JSON.parse(responseText);
       data = Array.isArray(parsed) ? parsed : [];
-      console.log('📋 Orders parsed successfully:', data.length, 'orders');
+      console.log('Orders parsed successfully:', data.length, 'orders');
     } catch (parseError) {
-      console.error('❌ Orders JSON parse error:', parseError);
+      console.error('JSON parse error:', parseError);
+      console.error('Response text:', responseText);
       data = [];
     }
 
-    console.log('📋 Setting orders state with:', data.length, 'orders');
     setOrders(data);
     setLastRefresh(new Date());
-    console.log('📋 Orders state updated successfully');
+    console.log('Orders state updated successfully');
     
   } catch (error) {
-    console.error('❌ fetchOrders error:', error);
+    console.error('fetchOrders error:', error);
     
     if (error.name === 'AbortError') {
-      console.log('🔄 Request was aborted:', error.message || 'Unknown reason');
+      console.log('Request was aborted:', error.message);
     } else {
-      console.error('💥 Unexpected fetchOrders error:', error.message);
+      console.error('Unexpected error:', error);
+      // Show user-friendly error message
+      alert('Gagal mengambil data pesanan. Silakan coba lagi.');
     }
     
   } finally {
