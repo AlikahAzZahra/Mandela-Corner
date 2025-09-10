@@ -43,49 +43,80 @@ const formatOrderTime = (ts) => {
 
 // IMPROVED normalizeOrderItems function - ganti yang ada di AdminPage.jsx
 const normalizeOrderItems = (itemsField) => {
-  console.log('🔍 normalizeOrderItems called with:', {
+  console.log('normalizeOrderItems called with:', {
     type: typeof itemsField,
     isArray: Array.isArray(itemsField),
-    value: itemsField
+    value: itemsField,
+    length: itemsField?.length || 0
   });
   
+  // Handle null/undefined
   if (!itemsField) {
-    console.log('⚠️ itemsField is null/undefined');
+    console.warn('itemsField is null/undefined, returning empty array');
     return [];
   }
   
+  // Already an array - return as is
   if (Array.isArray(itemsField)) {
-    console.log('✅ itemsField is already an array:', itemsField.length, 'items');
+    console.log('itemsField is already an array with', itemsField.length, 'items');
     return itemsField;
   }
   
+  // Handle string that needs parsing
   if (typeof itemsField === "string") {
+    // Handle empty string
+    if (itemsField.trim() === '' || itemsField === 'null' || itemsField === 'undefined') {
+      console.log('itemsField is empty/null string, returning empty array');
+      return [];
+    }
+    
     try {
-      console.log('🔄 Parsing string itemsField...');
+      console.log('Attempting to parse JSON string:', itemsField.substring(0, 100) + '...');
       const parsed = JSON.parse(itemsField);
       
       if (Array.isArray(parsed)) {
-        console.log('✅ Successfully parsed string to array:', parsed.length, 'items');
+        console.log('Successfully parsed string to array with', parsed.length, 'items');
         return parsed;
+      } else if (parsed === null || parsed === undefined) {
+        console.log('Parsed result is null/undefined, returning empty array');
+        return [];
       } else {
-        console.warn('⚠️ Parsed result is not an array:', typeof parsed);
+        console.warn('Parsed result is not an array:', typeof parsed, parsed);
         return [];
       }
     } catch (error) {
-      console.error('❌ JSON parse error:', error.message);
-      console.log('Raw string that failed to parse:', itemsField.substring(0, 200) + '...');
+      console.error('JSON parse error:', error.message);
+      console.error('Failed string:', itemsField);
+      
+      // Try to handle common malformed JSON cases
+      try {
+        // Remove any trailing commas or fix common issues
+        const cleanedString = itemsField
+          .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+          .replace(/'/g, '"')             // Replace single quotes with double quotes
+          .trim();
+          
+        const retryParsed = JSON.parse(cleanedString);
+        if (Array.isArray(retryParsed)) {
+          console.log('Successfully parsed after cleanup');
+          return retryParsed;
+        }
+      } catch (retryError) {
+        console.error('Retry parse also failed:', retryError.message);
+      }
+      
       return [];
     }
   }
   
-  console.warn('⚠️ Unexpected itemsField type:', typeof itemsField);
+  console.warn('Unexpected itemsField type:', typeof itemsField, itemsField);
   return [];
 };
 
 // IMPROVED toUnifiedItem function - ganti yang ada di AdminPage.jsx  
-const toUnifiedItem = (it) => {
-  if (!it) {
-    console.warn('⚠️ toUnifiedItem called with null/undefined item');
+const toUnifiedItem = (item) => {
+  if (!item) {
+    console.warn('toUnifiedItem called with null/undefined item');
     return {
       id_menu: 0,
       name: "Unknown Item",
@@ -95,24 +126,62 @@ const toUnifiedItem = (it) => {
     };
   }
 
+  // Debug the item structure
+  console.log('Converting item to unified format:', {
+    original: item,
+    keys: Object.keys(item || {}),
+    hasMenuId: !!(item?.id_menu || item?.menu_item_id),
+    hasName: !!(item?.menu_name || item?.name),
+    hasPrice: !!(item?.price_at_order || item?.price),
+    hasQuantity: !!item?.quantity
+  });
+
   const unified = {
     id_menu: Number(
-      it?.id_menu ?? it?.menu_item_id ?? it?.menu_id ?? it?.menuId ?? 0
+      item?.id_menu ?? 
+      item?.menu_item_id ?? 
+      item?.menu_id ?? 
+      item?.menuId ?? 
+      0
     ) || 0,
-    name: it?.menu_name ?? it?.name ?? "Unknown Item",
-    price: Number(it?.price_at_order ?? it?.price ?? 0),
-    quantity: Number(it?.quantity ?? 0),
+    
+    name: 
+      item?.menu_name ?? 
+      item?.name ?? 
+      item?.item_name ??
+      "Unknown Item",
+      
+    price: Number(
+      item?.price_at_order ?? 
+      item?.price ?? 
+      0
+    ) || 0,
+    
+    quantity: Number(item?.quantity ?? 0) || 0,
+    
     options: {
-      spiciness: it?.spiciness_level ?? it?.spiciness ?? "",
-      temperature: it?.temperature_level ?? it?.temperature ?? "",
+      spiciness: 
+        item?.spiciness_level ?? 
+        item?.spiciness ?? 
+        item?.spice_level ??
+        "",
+      temperature: 
+        item?.temperature_level ?? 
+        item?.temperature ?? 
+        item?.temp_level ??
+        "",
     },
   };
 
-  console.log('🔄 Unified item:', {
-    original: it,
-    unified: unified
-  });
+  // Validate the unified item
+  if (unified.id_menu === 0) {
+    console.warn('Unified item has no valid menu ID:', item);
+  }
+  if (!unified.name || unified.name === "Unknown Item") {
+    console.warn('Unified item has no valid name:', item);
+  }
 
+  console.log('Unified item result:', unified);
   return unified;
 };
 
@@ -325,25 +394,23 @@ const AdminPage = () => {
     }
   };
 
-// FIXED fetchOrders function - removed individual order fetching workaround
-// Tambahkan di AdminPage.jsx - ganti bagian fetchOrders function:
-
+// FIXED fetchOrders function - ganti function yang ada di AdminPage.jsx
 const fetchOrders = async (force = false) => {
-  console.log('Fetching orders, token:', !!token, 'force:', force);
+  console.log('fetchOrders called, token:', !!token, 'force:', force);
   
   if (!token) {
-    console.log('No token available');
+    console.log('No token available for fetchOrders');
     return;
   }
   
   if (ordersInFlightRef.current && !force) {
-    console.log('Request already in flight, skipping...');
+    console.log('Orders request already in flight, skipping...');
     return;
   }
 
   if (ordersAbortRef.current) {
     try {
-      ordersAbortRef.current.abort('New request');
+      ordersAbortRef.current.abort('New request initiated');
     } catch (err) {
       console.log('Previous request cleanup completed');
     }
@@ -355,13 +422,14 @@ const fetchOrders = async (force = false) => {
   
   const timeoutId = setTimeout(() => {
     console.log('Request timeout, aborting...');
-    controller.abort('Request timeout');
+    controller.abort('Request timeout after 30 seconds');
   }, 30000);
 
   try {
-    console.log('Making API request to:', `${apiBaseUrl}/orders`);
+    console.log('Fetching orders from API...');
+    const url = `${apiBaseUrl}/orders?t=${Date.now()}${force ? "&force=1" : ""}`;
     
-    const resp = await fetch(`${apiBaseUrl}/orders?t=${Date.now()}${force ? "&force=1" : ""}`, {
+    const resp = await fetch(url, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -374,35 +442,54 @@ const fetchOrders = async (force = false) => {
       signal: controller.signal,
     });
 
-    console.log('Response status:', resp.status);
-    console.log('Response headers:', resp.headers);
+    console.log('Orders response status:', resp.status);
     
     if (!resp.ok) {
       if (resp.status === 401 || resp.status === 403) {
-        console.log('Authentication failed');
+        console.log('Authentication failed in fetchOrders');
         handleLogout();
         return;
       }
       
       const errorText = await resp.text();
-      console.error('API Error:', errorText);
+      console.error('API Error Response:', errorText);
       throw new Error(`HTTP ${resp.status}: ${errorText}`);
     }
 
     const responseText = await resp.text();
-    console.log('Response received, length:', responseText.length);
+    console.log('Orders response length:', responseText.length);
     
     let data = [];
     try {
       const parsed = JSON.parse(responseText);
       data = Array.isArray(parsed) ? parsed : [];
       console.log('Orders parsed successfully:', data.length, 'orders');
+      
+      // Enhanced validation and debugging for each order
+      data.forEach((order, index) => {
+        console.log(`Order ${index + 1}:`, {
+          id: order.order_id,
+          items_type: typeof order.items,
+          items_length: order.items?.length || 0,
+          items_content: order.items
+        });
+        
+        // Try to parse items immediately to catch issues early
+        try {
+          const parsedItems = normalizeOrderItems(order.items);
+          console.log(`Order ${order.order_id} normalized items:`, parsedItems.length, 'items');
+        } catch (itemError) {
+          console.error(`Error normalizing items for order ${order.order_id}:`, itemError);
+        }
+      });
+      
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      console.error('Response text:', responseText);
+      console.error('Orders JSON parse error:', parseError);
+      console.error('Response text that failed to parse:', responseText.substring(0, 500));
       data = [];
     }
 
+    console.log('Setting orders state with:', data.length, 'orders');
     setOrders(data);
     setLastRefresh(new Date());
     console.log('Orders state updated successfully');
@@ -411,11 +498,16 @@ const fetchOrders = async (force = false) => {
     console.error('fetchOrders error:', error);
     
     if (error.name === 'AbortError') {
-      console.log('Request was aborted:', error.message);
+      console.log('Request was aborted:', error.message || 'Unknown reason');
     } else {
-      console.error('Unexpected error:', error);
+      console.error('Unexpected fetchOrders error:', error.message);
+      
       // Show user-friendly error message
-      alert('Gagal mengambil data pesanan. Silakan coba lagi.');
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        console.error('Network connectivity issue detected');
+      } else if (error.message.includes('timeout')) {
+        console.error('Request timeout detected');
+      }
     }
     
   } finally {
@@ -970,18 +1062,6 @@ const updateOrderStatus = async (orderId, newStatus) => {
       alert("Keranjang kosong.");
       return;
     }
-    
-    // Show confirmation before attempting update
-    const confirmUpdate = window.confirm(
-      `Apakah Anda yakin ingin memperbarui pesanan #${selectedOrderForDetail.order_id}?\n\n` +
-      `PERINGATAN: Fitur update pesanan mungkin belum tersedia di server.\n` +
-      `Jika update gagal, data pesanan tidak akan berubah.`
-    );
-    
-    if (!confirmUpdate) {
-      return;
-    }
-    
     const items = (editOrderCart || [])
       .map((it) => ({
         id_menu: Number(it.id_menu) || 0,
@@ -992,13 +1072,9 @@ const updateOrderStatus = async (orderId, newStatus) => {
       .filter((x) => x.id_menu > 0 && x.quantity > 0);
 
     const payload = { items, note: editOrderNote || "" };
-    
-    console.log('Attempting to update order:', selectedOrderForDetail.order_id);
-    console.log('Update payload:', payload);
-    
-    try {
-      // Try the most likely endpoint first
-      let resp = await fetch(`${apiBaseUrl}/orders/${selectedOrderForDetail.order_id}?t=${Date.now()}`, {
+    let resp = await fetch(
+      `${apiBaseUrl}/orders/${selectedOrderForDetail.order_id}?t=${Date.now()}`,
+      {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1008,31 +1084,40 @@ const updateOrderStatus = async (orderId, newStatus) => {
         },
         cache: "no-store",
         body: JSON.stringify(payload),
-      });
-      
-      console.log(`Primary endpoint response status:`, resp.status);
-      
-      if (!resp.ok) {
-        // If primary fails, inform user immediately
-        const errorText = await resp.text();
-        console.log('Primary endpoint error:', errorText);
-        
-        throw new Error(`Update pesanan gagal.\n\nDetail teknis:\n- Endpoint: /orders/${selectedOrderForDetail.order_id}\n- Status: ${resp.status}\n- Error: ${errorText || 'No error message'}\n\nKemungkinan:\n1. API update belum diimplementasi di server\n2. Pesanan tidak dapat diubah\n3. Masalah server\n\nSilakan hubungi administrator sistem.`);
       }
+    );
 
-      alert(`Pesanan #${selectedOrderForDetail.order_id} berhasil diperbarui!`);
-      closeEditOrder();
-      await fetchOrders(true);
-      
-    } catch (error) {
-      console.error('Update order error:', error);
-      
-      // Close modal but don't refresh to preserve current state
-      closeEditOrder();
-      
-      // Show detailed error
-      alert(error.message || 'Gagal memperbarui pesanan');
+    // fallback route
+    if (resp.status === 404) {
+      resp = await fetch(
+        `${apiBaseUrl}/orders/update/${selectedOrderForDetail.order_id}?t=${Date.now()}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "Cache-Control": "no-cache",
+          },
+          cache: "no-store",
+          body: JSON.stringify(payload),
+        }
+      );
     }
+
+    if (!resp.ok) {
+      let msg = await resp.text();
+      try {
+        const j = JSON.parse(msg);
+        msg = j.message || msg;
+      } catch {}
+      alert(`Gagal memperbarui pesanan: ${msg}`);
+      return;
+    }
+
+    alert(`Pesanan #${selectedOrderForDetail.order_id} berhasil diperbarui!`);
+    closeEditOrder();
+    fetchOrders(true);
   };
 
   // ====== Kasir - order baru
@@ -1761,70 +1846,34 @@ const showEditOrder = (order) => {
 
                         <div className="order-items-section">
                           <div className="order-items-header">Item Pesanan:</div>
-                          {(() => {
-                            console.log('🔍 Raw order items data:', order.items);
-                            const orderItems = normalizeOrderItems(order.items);
-                            console.log('🔍 Normalized order items:', orderItems);
-                            
-                            if (!orderItems || orderItems.length === 0) {
+                          <ul className="order-items-list">
+                            {orderItems.map((i, ii) => {
+                              if (!i) return null;
+                              const qty = Number(i?.quantity) || 0;
+                              const each = Number(i?.price_at_order ?? i?.price ?? 0);
+                              const name = i?.menu_name ?? i?.name ?? "Unknown Item";
+                              const spice = i?.spiciness_level ?? i?.spiciness;
+                              const temp = i?.temperature_level ?? i?.temperature;
                               return (
-                                <div className="no-items-message" style={{
-                                  padding: '10px',
-                                  color: '#999',
-                                  fontStyle: 'italic',
-                                  border: '1px dashed #ddd',
-                                  borderRadius: '4px',
-                                  margin: '10px 0'
-                                }}>
-                                  Tidak ada item pesanan atau data tidak valid
-                                  <br />
-                                  <small>Raw data: {JSON.stringify(order.items)}</small>
-                                </div>
+                                <li key={ii} className="order-item-detail">
+                                  <div className="order-item-info">
+                                    <span className="order-item-name">
+                                      {qty}x {name}
+                                    </span>
+                                    {(spice || temp) && (
+                                      <div className="order-item-options">
+                                        {spice && <span className="order-item-option">({spice})</span>}
+                                        {temp && <span className="order-item-option">({temp})</span>}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="order-item-price">
+                                    Rp {formatPrice(qty * each)}
+                                  </div>
+                                </li>
                               );
-                            }
-                            
-                            return (
-                              <ul className="order-items-list">
-                                {orderItems.map((i, ii) => {
-                                  console.log('🔍 Processing item:', i);
-                                  if (!i) {
-                                    return (
-                                      <li key={ii} className="order-item-detail" style={{color: '#999', fontStyle: 'italic'}}>
-                                        Item {ii + 1}: Data tidak valid
-                                      </li>
-                                    );
-                                  }
-                                  
-                                  const qty = Number(i?.quantity) || 0;
-                                  const each = Number(i?.price_at_order ?? i?.price ?? 0);
-                                  const name = i?.menu_name ?? i?.name ?? "Unknown Item";
-                                  const spice = i?.spiciness_level ?? i?.spiciness;
-                                  const temp = i?.temperature_level ?? i?.temperature;
-                                  
-                                  console.log('🔍 Item details:', {qty, each, name, spice, temp});
-                                  
-                                  return (
-                                    <li key={ii} className="order-item-detail">
-                                      <div className="order-item-info">
-                                        <span className="order-item-name">
-                                          {qty}x {name}
-                                        </span>
-                                        {(spice || temp) && (
-                                          <div className="order-item-options">
-                                            {spice && <span className="order-item-option">({spice})</span>}
-                                            {temp && <span className="order-item-option">({temp})</span>}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="order-item-price">
-                                        Rp {formatPrice(qty * each)}
-                                      </div>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            );
-                          })()}
+                            })}
+                          </ul>
                         </div>
 
                         <div className="order-actions">
