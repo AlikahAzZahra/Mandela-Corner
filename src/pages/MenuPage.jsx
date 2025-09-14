@@ -1012,13 +1012,12 @@ function MenuPage() {
             {/* Sidebar untuk keranjang */}
             <div
                 className={`cart-sidebar ${isCartSidebarOpen ? 'open' : ''}`}
-                // PATCH: tempelkan di bawah navbar (75px) dan penuhi sisa tinggi viewport
-                style={{ top: '75px', height: 'calc(100vh - 75px)' }}
             >
                 <div className="cart-sidebar-header">
                     <h3>🛒 Keranjang Anda ({getTotalItemsInCart()})</h3>
                     <button onClick={closeCartSidebar} className="close-sidebar-button">×</button>
                 </div>
+                
                 <div className="cart-items">
                     {cart.length === 0 ? (
                         <p className="empty-cart-message">Keranjang Anda kosong.</p>
@@ -1027,7 +1026,7 @@ function MenuPage() {
                             <div key={index} className="cart-item">
                                 {/* Remove button di kanan atas */}
                                 <button 
-                                    onClick={() => deleteFromCart(item)}  /* ⬅️ UBAH: hapus total item */
+                                    onClick={() => deleteFromCart(item)}
                                     className="remove-from-cart-button"
                                     title="Hapus item"
                                 >
@@ -1066,9 +1065,11 @@ function MenuPage() {
                         ))
                     )}
                 </div>
+                
                 <div className="cart-summary-total">
                     <p>Total: <strong>Rp {formatPrice(getTotalPrice())}</strong></p>
                 </div>
+                
                 <button
                     onClick={handlePlaceOrderClick}
                     disabled={getTotalItemsInCart() === 0}
