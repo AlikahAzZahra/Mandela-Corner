@@ -421,6 +421,191 @@ function MenuPage() {
     if (isAvailable) (kategoriMenu[item.category] ||= []).push(item);
   });
 
+  const processImageUrl = (imageUrl) => {
+  if (!imageUrl) {
+    return "https://placehold.co/200x150/CCCCCC/000000?text=No+Image";
+  }
+  
+  // Jika URL Google Drive, konversi ke direct view
+  if (imageUrl.includes('drive.google.com')) {
+    // Format: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    const match = imageUrl.match(/\/file\/d\/([^/]+)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+    }
+    
+    // Format: https://drive.google.com/open?id=FILE_ID
+    const urlParams = new URLSearchParams(imageUrl.split('?')[1]);
+    const fileId = urlParams.get('id');
+    if (fileId) {
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+  }
+  
+  return imageUrl;
+};
+
+const MenuItemImage = ({ imageUrl, altText, className }) => {
+  const [imgSrc, setImgSrc] = useState(processImageUrl(imageUrl));
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setImgSrc(processImageUrl(imageUrl));
+    setHasError(false);
+    setIsLoading(true);
+  }, [imageUrl]);
+
+  const handleError = () => {
+    if (!hasError) {
+      console.log('Image failed to load:', imgSrc);
+      setHasError(true);
+      setImgSrc("https://placehold.co/200x150/CCCCCC/000000?text=No+Image");
+    }
+  };
+
+  const handleLoad = () => {
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="menu-item-image-container">
+      {isLoading && (
+        <div className="menu-item-image-loading">
+          <div className="loading-spinner"></div>
+          <span>Loading...</span>
+        </div>
+      )}
+      <img
+        src={imgSrc}
+        alt={altText || "Menu Item"}
+        className={`${className || 'menu-item-image'} ${isLoading ? 'loading' : 'loaded'}`}
+        onError={handleError}
+        onLoad={handleLoad}
+        loading="lazy"
+      />
+    </div>
+  );
+};
+
+const MenuItemCard = ({ item, onAddToCart, cartItemsMap, onOptionChange, itemSelections }) => {
+  const currentOpts = itemSelections[item.id_menu] || { spiciness: "", temperature: "" };
+  const qty = cartItemsMap[item.id_menu]?.quantity || 0;
+
+  return (
+    <div className={`menu-item ${qty > 0 ? 'selected' : ''}`}>
+      <MenuItemImage
+        imageUrl={item.image_url}
+        altText={item.name}
+        className="menu-item-image"
+      />
+      
+      <div className="menu-item-content">
+        <div className="menu-item-header">
+          <h3 className="menu-item-name">{item.name || "Unknown Item"}</h3>
+          <p className="menu-item-price">Rp {formatPrice(item.price)}</p>
+        </div>
+
+        {item.description && (
+          <p className="menu-item-description">{item.description}</p>
+        )}
+
+        {/* Options untuk Mie */}
+        {item.category?.startsWith("menu mie") && (
+          <div className="menu-item-options">
+            <label className="option-label">Kepedasan:</label>
+            <div className="radio-group">
+              {["tidak pedas", "pedas sedang", "pedas"].map((level) => (
+                <label key={level} className="radio-option">
+                  <input
+                    type="radio"
+                    name={`spiciness-${item.id_menu}`}
+                    value={level}
+                    checked={currentOpts.spiciness === level}
+                    onChange={() => onOptionChange(item.id_menu, "spiciness", level)}
+                  />
+                  <span className="radio-label">{level}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Options untuk Minuman */}
+        {item.category?.startsWith("minuman") && (
+          <div className="menu-item-options">
+            <label className="option-label">Suhu:</label>
+            <div className="radio-group">
+              {["dingin", "tidak dingin"].map((temp) => (
+                <label key={temp} className="radio-option">
+                  <input
+                    type="radio"
+                    name={`temperature-${item.id_menu}`}
+                    value={temp}
+                    checked={currentOpts.temperature === temp}
+                    onChange={() => onOptionChange(item.id_menu, "temperature", temp)}
+                  />
+                  <span className="radio-label">{temp}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="quantity-controls">
+          <button
+            className="qty-btn minus"
+            onClick={() => onAddToCart(item, -1)}
+            disabled={qty === 0}
+          >
+            -
+          </button>
+          <span className="qty-display">{qty}</span>
+          <button
+            className="qty-btn plus"
+            onClick={() => onAddToCart(item, 1)}
+          >
+            +
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const useImagePreloader = (imageSrcs) => {
+  useEffect(() => {
+    imageSrcs.forEach((src) => {
+      if (src && !src.includes('placehold.co')) {
+        const img = new Image();
+        img.src = processImageUrl(src);
+      }
+    });
+  }, [imageSrcs]);
+};
+
+// 6. Contoh penggunaan dalam MenuPage component
+const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange, itemSelections }) => {
+  // Preload images
+  const imageSrcs = menuItems.map(item => item.image_url).filter(Boolean);
+  useImagePreloader(imageSrcs);
+
+  return (
+    <div className="menu-items-grid">
+      {menuItems.map((item) => (
+        <MenuItemCard
+          key={item.id_menu}
+          item={item}
+          onAddToCart={onAddToCart}
+          cartItemsMap={cartItemsMap}
+          onOptionChange={onOptionChange}
+          itemSelections={itemSelections}
+        />
+      ))}
+    </div>
+  );
+};
+
   const categoriesOrder = [
     'makanan-nasi', 'makanan-pelengkap', 'minuman-kopi', 'minuman-nonkopi',
     'menu mie-banggodrong', 'menu mie-aceh', 'menu mie-toping',

@@ -277,6 +277,84 @@ const AdminPage = () => {
   });
   const [editingMenu, setEditingMenu] = useState(null);
 
+  const processImageUrl = (imageUrl) => {
+  if (!imageUrl) {
+    return "https://placehold.co/150x150/CCCCCC/000000?text=No+Image";
+  }
+  
+  // Jika URL Google Drive, konversi ke direct view
+  if (imageUrl.includes('drive.google.com')) {
+    // Format: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    const match = imageUrl.match(/\/file\/d\/([^/]+)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+    }
+    
+    // Format: https://drive.google.com/open?id=FILE_ID
+    const urlParams = new URLSearchParams(imageUrl.split('?')[1]);
+    const fileId = urlParams.get('id');
+    if (fileId) {
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+  }
+  
+  return imageUrl;
+};
+
+const MenuItemImage = ({ imageUrl, altText, className }) => {
+  const [imgSrc, setImgSrc] = useState(processImageUrl(imageUrl));
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const handleError = () => {
+    if (!hasError) {
+      setHasError(true);
+      setImgSrc("https://placehold.co/150x150/CCCCCC/000000?text=No+Image");
+    }
+  };
+
+  const handleLoad = () => {
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="image-container" style={{ position: 'relative' }}>
+      {isLoading && (
+        <div 
+          className="image-loading" 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#f0f0f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            color: '#666'
+          }}
+        >
+          Loading...
+        </div>
+      )}
+      <img
+        src={imgSrc}
+        alt={altText || "Menu Item"}
+        className={className}
+        onError={handleError}
+        onLoad={handleLoad}
+        style={{
+          opacity: isLoading ? 0 : 1,
+          transition: 'opacity 0.3s ease'
+        }}
+        crossOrigin="anonymous"
+      />
+    </div>
+  );
+};
+
   // ====== Table
   const [newTable, setNewTable] = useState({ table_number: "", capacity: "" });
 
@@ -1978,77 +2056,70 @@ const showEditOrder = (order) => {
                 ) : (
                   <div className="menu-list-grid">
                     {menuItems.map((item) => (
-                      <div
-                        key={item.id_menu}
-                        className="menu-item-management-card"
-                      >
-                        <img
-                          src={
-                            item.image_url ||
-                            "https://placehold.co/150x150/CCCCCC/000000?text=No+Image"
-                          }
-                          onError={(e) => {
-                            e.currentTarget.src =
-                              "https://placehold.co/150x150/CCCCCC/000000?text=No+Image";
-                          }}
-                          alt={item.name || "Menu Item"}
-                          className="menu-item-management-image"
-                        />
-                        <p>
-                          <strong>{item.name || "Unknown"}</strong> (Rp{" "}
-                          {formatPrice(item.price)})
-                        </p>
-                        <p className="menu-item-management-category">
-                          Kategori: {item.category || "N/A"}
-                        </p>
-                        <p
-                          className={
-                            item.is_available === 1 ||
-                            item.is_available === true ||
-                            item.is_available === "1"
-                              ? "menu-status-available"
-                              : "menu-status-unavailable"
-                          }
-                        >
-                          Status:{" "}
-                          {item.is_available === 1 ||
-                          item.is_available === true ||
-                          item.is_available === "1"
-                            ? "Tersedia"
-                            : "Tidak Tersedia"}
-                        </p>
-                        <div className="menu-action-buttons">
-                          <button
-                            onClick={() => handleEditMenuClick(item)}
-                            className="menu-action-button btn-info"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleToggleMenuAvailability(item)}
-                            className={
-                              item.is_available === 1 ||
-                              item.is_available === true ||
-                              item.is_available === "1"
-                                ? "menu-action-button toggle-active"
-                                : "menu-action-button toggle-inactive"
-                            }
-                          >
-                            {item.is_available === 1 ||
-                            item.is_available === true ||
-                            item.is_available === "1"
-                              ? "Nonaktifkan"
-                              : "Aktifkan"}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteMenu(item.id_menu)}
-                            className="menu-action-button delete"
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+  <div
+    key={item.id_menu}
+    className="menu-item-management-card"
+  >
+    <MenuItemImage
+      imageUrl={item.image_url}
+      altText={item.name}
+      className="menu-item-management-image"
+    />
+    <p>
+      <strong>{item.name || "Unknown"}</strong> (Rp{" "}
+      {formatPrice(item.price)})
+    </p>
+    <p className="menu-item-management-category">
+      Kategori: {item.category || "N/A"}
+    </p>
+    <p
+      className={
+        item.is_available === 1 ||
+        item.is_available === true ||
+        item.is_available === "1"
+          ? "menu-status-available"
+          : "menu-status-unavailable"
+      }
+    >
+      Status:{" "}
+      {item.is_available === 1 ||
+      item.is_available === true ||
+      item.is_available === "1"
+        ? "Tersedia"
+        : "Tidak Tersedia"}
+    </p>
+    <div className="menu-action-buttons">
+      <button
+        onClick={() => handleEditMenuClick(item)}
+        className="menu-action-button btn-info"
+      >
+        Edit
+      </button>
+      <button
+        onClick={() => handleToggleMenuAvailability(item)}
+        className={
+          item.is_available === 1 ||
+          item.is_available === true ||
+          item.is_available === "1"
+            ? "menu-action-button toggle-active"
+            : "menu-action-button toggle-inactive"
+        }
+      >
+        {item.is_available === 1 ||
+        item.is_available === true ||
+        item.is_available === "1"
+          ? "Nonaktifkan"
+          : "Aktifkan"}
+      </button>
+      <button
+        onClick={() => handleDeleteMenu(item.id_menu)}
+        className="menu-action-button delete"
+      >
+        Hapus
+      </button>
+    </div>
+  </div>
+))}
                   </div>
                 )}
               </>
@@ -2099,22 +2170,38 @@ const showEditOrder = (order) => {
                   <option value="camilan-gurih">CAMILAN - GURIH</option>
                   <option value="lain-lain">LAIN-LAIN</option>
                 </select>
-                <input
-                  type="file"
-                  id="menuImageUpload"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="menu-form-file"
-                />
-                {newMenu.imageUrlPreview ? (
-                  <div className="menu-image-preview-container">
-                    <img
-                      src={newMenu.imageUrlPreview}
-                      alt="Preview"
-                      className="menu-image-preview"
-                    />
-                  </div>
-                ) : null}
+                
+<div className="menu-form-input-group">
+  <label htmlFor="imageUrl">URL Gambar:</label>
+  <input
+    type="url"
+    id="imageUrl"
+    placeholder="https://example.com/image.jpg atau Google Drive link"
+    value={newMenu.imageUrlPreview}
+    onChange={(e) => {
+      const url = e.target.value.trim();
+      setNewMenu((p) => ({ 
+        ...p, 
+        imageUrlPreview: url,
+        imageFile: null // Clear file input jika ada
+      }));
+    }}
+    className="menu-form-input"
+  />
+  <small className="input-help">
+    Gunakan URL langsung ke gambar atau link Google Drive
+  </small>
+</div>
+
+{newMenu.imageUrlPreview && (
+  <div className="menu-image-preview-container">
+    <MenuItemImage
+      imageUrl={newMenu.imageUrlPreview}
+      altText="Preview"
+      className="menu-image-preview"
+    />
+  </div>
+)}
                 <div className="menu-form-actions">
                   <button onClick={handleAddOrUpdateMenu} className="menu-add-button">
                     {editingMenu ? "Update Menu" : "Tambah Menu"}
@@ -2128,6 +2215,7 @@ const showEditOrder = (order) => {
           </div>
         )}
 
+        
         {/* Manajemen Meja */}
         {activeTab === "manajemen-meja" && userRole === "admin" && (
           <div className="admin-section-box">
