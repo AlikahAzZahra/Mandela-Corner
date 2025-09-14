@@ -1,17 +1,15 @@
-// client/src/pages/MenuPage.jsx - IMPROVED MODERN DESIGN (Responsive Universal, No Function Changes)
+// client/src/pages/MenuPage.jsx - IMPROVED MODERN DESIGN + QTY CENTER FIX
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import '../styles/MenuPage.css'; // Import file CSS yang sudah diperbaharui
+import { useParams } from 'react-router-dom';
+import '../styles/MenuPage.css';
 import logo from '../assets/logo.jpeg';
 
-// Komponen PaymentMethodModal yang sudah diperbaharui
+/* ===== PaymentMethodModal (tetap, hanya tampilan) ===== */
 const PaymentMethodModal = ({ isOpen, onClose, onSelectMethod }) => {
   if (!isOpen) return null;
 
   const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
   return (
@@ -43,37 +41,25 @@ const PaymentMethodModal = ({ isOpen, onClose, onSelectMethod }) => {
 function MenuPage() {
   const { tableNumber } = useParams();
   const [menu, setMenu] = useState([]);
-  // Cart: [{ id_menu, name, price, quantity, options: { spiciness, temperature } }]
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Opsi sementara per item
   const [itemSelections, setItemSelections] = useState({});
-
-  // Popup bayar di kasir
   const [showOrderSuccessPopup, setShowOrderSuccessPopup] = useState(false);
-
-  // Popup pembayaran online
   const [showPaymentSuccessPopup, setShowPaymentSuccessPopup] = useState(false);
   const [paymentSuccessData, setPaymentSuccessData] = useState(null);
-
-  // Sidebar keranjang
   const [isCartSidebarOpen, setIsCartSidebarOpen] = useState(false);
-
-  // Modal metode pembayaran
   const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
 
   const API_BASE_URL = 'https://let-s-pay-server.vercel.app/api';
 
-  // Helper bersihkan nomor meja
   const cleanTableNumber = (tableNum) => {
     if (!tableNum) return tableNum;
     if (tableNum.toLowerCase().startsWith('meja ')) return tableNum.substring(5);
     return tableNum;
   };
 
-  // Nomor meja sebagai STRING untuk API
   const getTableNumberForAPI = () => {
     if (!tableNumber || tableNumber === 'undefined' || tableNumber === undefined) return '1';
     const cleanedNumber = cleanTableNumber(tableNumber);
@@ -81,14 +67,12 @@ function MenuPage() {
     return String(cleanedNumber);
   };
 
-  // Format Rupiah
   const formatPrice = (price) => {
     if (price == null || isNaN(price)) return '0';
-    return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-      .format(Number(price));
+    const numPrice = Number(price);
+    return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(numPrice);
   };
 
-  // Ambil menu
   const fetchMenu = async () => {
     try {
       setLoading(true);
@@ -102,7 +86,7 @@ function MenuPage() {
       if (!Array.isArray(data)) throw new Error('Data menu tidak valid dari server');
       setMenu(data);
       const initialSelections = {};
-      data.forEach(item => { if (item?.id_menu) initialSelections[item.id_menu] = { spiciness: '', temperature: '' }; });
+      data.forEach(item => { if (item && item.id_menu) initialSelections[item.id_menu] = { spiciness: '', temperature: '' }; });
       setItemSelections(initialSelections);
     } catch (err) {
       setError(`Gagal memuat menu: ${err.message}`);
@@ -114,37 +98,29 @@ function MenuPage() {
 
   useEffect(() => {
     fetchMenu();
-    // Debug snap
-    // console.log('Midtrans Snap available:', !!window.snap);
   }, []);
 
-  // Lock scroll saat overlay/sidebars aktif
   useEffect(() => {
     const open = isCartSidebarOpen || isPaymentMethodModalOpen || showOrderSuccessPopup || showPaymentSuccessPopup;
     document.body.classList.toggle('cart-open', open);
     const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = open ? 'hidden' : prevOverflow || '';
+    document.body.style.overflow = open ? 'hidden' : (prevOverflow || '');
     return () => { document.body.classList.remove('cart-open'); document.body.style.overflow = ''; };
   }, [isCartSidebarOpen, isPaymentMethodModalOpen, showOrderSuccessPopup, showPaymentSuccessPopup]);
 
-  // Ubah opsi item
   const handleOptionChange = (itemId, optionType, value) => {
-    setItemSelections(prev => ({ ...prev, [itemId]: { ...(prev[itemId] || {}), [optionType]: value } }));
+    setItemSelections(prev => ({ ...prev, [itemId]: { ...prev[itemId], [optionType]: value } }));
   };
 
-  // Temukan item pada cart (berdasarkan id + opsi)
-  const findCartItem = (itemId, options) => {
-    return cart.find(cartItem =>
-      cartItem.id_menu === itemId &&
-      cartItem.options.spiciness === (options.spiciness || '') &&
-      cartItem.options.temperature === (options.temperature || '')
+  const findCartItem = (itemId, options) =>
+    cart.find(c =>
+      c.id_menu === itemId &&
+      c.options.spiciness === (options.spiciness || '') &&
+      c.options.temperature === (options.temperature || '')
     );
-  };
 
-  // Tambah item ke cart
   const addToCart = (itemToAdd) => {
     const optionsForThisItem = itemSelections[itemToAdd.id_menu] || { spiciness: '', temperature: '' };
-
     if (itemToAdd.category && itemToAdd.category.startsWith('menu mie') && !optionsForThisItem.spiciness) {
       alert('Silakan pilih tingkat kepedasan untuk ' + itemToAdd.name + '!');
       return;
@@ -154,74 +130,57 @@ function MenuPage() {
       return;
     }
 
-    setCart(prevCart => {
+    setCart(prev => {
       const existingCartItem = findCartItem(itemToAdd.id_menu, optionsForThisItem);
       if (existingCartItem) {
-        return prevCart.map(cartItem =>
-          cartItem === existingCartItem
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-            : cartItem
-        );
-      } else {
-        return [
-          ...prevCart,
-          {
-            id_menu: itemToAdd.id_menu,
-            name: itemToAdd.name,
-            price: itemToAdd.price,
-            quantity: 1,
-            options: { ...optionsForThisItem }
-          }
-        ];
+        return prev.map(ci => (ci === existingCartItem ? { ...ci, quantity: ci.quantity + 1 } : ci));
       }
+      return [
+        ...prev,
+        {
+          id_menu: itemToAdd.id_menu,
+          name: itemToAdd.name,
+          price: itemToAdd.price,
+          quantity: 1,
+          options: { ...optionsForThisItem }
+        }
+      ];
     });
   };
 
-  // Kurangi item
   const removeFromCart = (itemInCart) => {
-    setCart(prevCart => {
+    setCart(prev => {
       const existingCartItem = findCartItem(itemInCart.id_menu, itemInCart.options);
       if (existingCartItem) {
         if (existingCartItem.quantity > 1) {
-          return prevCart.map(cartItem =>
-            cartItem === existingCartItem
-              ? { ...cartItem, quantity: cartItem.quantity - 1 }
-              : cartItem
-          );
+          return prev.map(ci => (ci === existingCartItem ? { ...ci, quantity: ci.quantity - 1 } : ci));
         } else {
-          const newCart = prevCart.filter(cartItem => cartItem !== existingCartItem);
+          const newCart = prev.filter(ci => ci !== existingCartItem);
           if (newCart.length === 0) setIsCartSidebarOpen(false);
           return newCart;
         }
       }
-      return prevCart;
+      return prev;
     });
   };
 
-  // Hapus varian dari cart
   const deleteFromCart = (itemInCart) => {
-    setCart(prevCart => {
-      const newCart = prevCart.filter(cartItem =>
+    setCart(prev =>
+      prev.filter(ci =>
         !(
-          cartItem.id_menu === itemInCart.id_menu &&
-          (cartItem.options?.spiciness || '') === (itemInCart.options?.spiciness || '') &&
-          (cartItem.options?.temperature || '') === (itemInCart.options?.temperature || '')
+          ci.id_menu === itemInCart.id_menu &&
+          (ci.options?.spiciness || '') === (itemInCart.options?.spiciness || '') &&
+          (ci.options?.temperature || '') === (itemInCart.options?.temperature || '')
         )
-      );
-      if (newCart.length === 0) setIsCartSidebarOpen(false);
-      return newCart;
-    });
+      )
+    );
   };
 
-  const getTotalItemsInCart = () => cart.reduce((sum, item) => sum + item.quantity, 0);
-  const getTotalPrice = () => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const getTotalItemsInCart = () => cart.reduce((s, i) => s + i.quantity, 0);
+  const getTotalPrice = () => cart.reduce((s, i) => s + (i.price * i.quantity), 0);
 
-  // Proses pesanan (fungsi sama, tanpa perubahan logika)
   const processOrder = async (paymentMethod) => {
-    if (getTotalItemsInCart() === 0) {
-      alert('Keranjang belanja kosong! Silakan pilih item terlebih dahulu.');
-      return;
-    }
+    if (getTotalItemsInCart() === 0) { alert('Keranjang belanja kosong! Silakan pilih item terlebih dahulu.'); return; }
 
     const orderItemsForBackend = cart.map(item => ({
       id_menu: Number(item.id_menu),
@@ -233,21 +192,22 @@ function MenuPage() {
     const tableNumberForAPI = getTableNumberForAPI();
     if (typeof tableNumberForAPI !== 'string') { alert('Error: Nomor meja harus berupa teks.'); return; }
 
-    // Cek boolean
-    const checkForBooleans = (obj, path = '') => {
-      Object.entries(obj).forEach(([key, value]) => {
-        const currentPath = path ? `${path}.${key}` : key;
-        if (typeof value === 'boolean') throw new Error(`Boolean value found at ${currentPath}`);
-        if (Array.isArray(value)) value.forEach((v, i) => (typeof v === 'object' && v) && checkForBooleans(v, `${currentPath}[${i}]`));
-        else if (typeof value === 'object' && value) checkForBooleans(value, currentPath);
-      });
+    const fullOrderPreview = { tableNumber: tableNumberForAPI, items: orderItemsForBackend };
+    const checkForBooleans = (obj) => {
+      const loop = (o) => {
+        Object.entries(o).forEach(([k, v]) => {
+          if (typeof v === 'boolean') throw new Error(`Boolean value found in order data at ${k}: ${v}`);
+          if (Array.isArray(v)) v.forEach(loop);
+          else if (v && typeof v === 'object') loop(v);
+        });
+      };
+      loop(obj);
     };
-    try { checkForBooleans({ tableNumber: tableNumberForAPI, items: orderItemsForBackend }); }
-    catch (err) { alert('Terjadi kesalahan dalam data pesanan: ' + err.message); return; }
+    try { checkForBooleans(fullOrderPreview); } catch (e) { alert('Terjadi kesalahan dalam data pesanan: ' + e.message); return; }
 
     if (paymentMethod === 'bayar online') {
       if (typeof window === 'undefined' || !window.snap || typeof window.snap.pay !== 'function') {
-        alert('Sistem pembayaran belum siap. Pastikan koneksi internet stabil & refresh halaman.');
+        alert('Sistem pembayaran belum siap. Pastikan koneksi internet stabil dan refresh halaman.');
         return;
       }
       try {
@@ -264,17 +224,18 @@ function MenuPage() {
           custom_field1: String(getTableNumberForAPI()),
           custom_field2: JSON.stringify(orderItemsForBackend)
         };
-
         const midtransResponse = await fetch(`${API_BASE_URL}/midtrans/transaction`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(transactionData)
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(transactionData)
         });
         if (!midtransResponse.ok) {
-          let errorMessage = 'Gagal membuat transaksi Midtrans.';
-          try { const errorData = await midtransResponse.json(); errorMessage = errorData.message || errorData.error || errorMessage; } catch {}
-          throw new Error(errorMessage);
+          let msg = 'Gagal membuat transaksi Midtrans.'; try {
+            const err = await midtransResponse.json(); msg = err.message || err.error || msg;
+          } catch { msg = `Server error (${midtransResponse.status})`; }
+          throw new Error(msg);
         }
         const midtransData = await midtransResponse.json();
-
         window.snap.pay(midtransData.token, {
           onSuccess: async (result) => {
             try {
@@ -289,9 +250,8 @@ function MenuPage() {
               const orderResponse = await fetch(`${API_BASE_URL}/orders`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderPayload)
               });
-              if (!orderResponse.ok) throw new Error('Pembayaran berhasil, tetapi terjadi kesalahan saat menyimpan pesanan.');
+              if (!orderResponse.ok) { alert('Pembayaran berhasil, tetapi terjadi kesalahan saat menyimpan pesanan. Silakan hubungi staff.'); return; }
               const orderData = await orderResponse.json();
-
               setPaymentSuccessData({
                 orderId: orderData.orderId,
                 totalAmount: getTotalPrice(),
@@ -300,9 +260,13 @@ function MenuPage() {
                 status: 'success'
               });
               setShowPaymentSuccessPopup(true);
-              setCart([]); const resetSel = {}; menu.forEach(it => resetSel[it.id_menu] = { spiciness: '', temperature: '' }); setItemSelections(resetSel); setIsCartSidebarOpen(false);
-            } catch (orderError) {
-              alert(orderError.message);
+              setCart([]);
+              const resetSelections = {};
+              menu.forEach(item => { resetSelections[item.id_menu] = { spiciness: '', temperature: '' }; });
+              setItemSelections(resetSelections);
+              setIsCartSidebarOpen(false);
+            } catch {
+              alert('Pembayaran berhasil, tetapi terjadi kesalahan saat menyimpan pesanan. Silakan hubungi staff.');
             }
           },
           onPending: async (result) => {
@@ -315,20 +279,26 @@ function MenuPage() {
                 midtrans_order_id: tempOrderId,
                 midtrans_transaction_id: result.transaction_id
               };
-              await fetch(`${API_BASE_URL}/orders`, {
+              const orderResponse = await fetch(`${API_BASE_URL}/orders`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderPayload)
               });
-              setPaymentSuccessData({
-                orderId: tempOrderId,
-                totalAmount: getTotalPrice(),
-                transactionId: result.transaction_id,
-                paymentType: result.payment_type || 'Online Payment',
-                status: 'pending'
-              });
-              setShowPaymentSuccessPopup(true);
-            } finally {
-              setCart([]); const resetSel = {}; menu.forEach(it => resetSel[it.id_menu] = { spiciness: '', temperature: '' }); setItemSelections(resetSel); setIsCartSidebarOpen(false);
-            }
+              if (orderResponse.ok) {
+                const orderData = await orderResponse.json();
+                setPaymentSuccessData({
+                  orderId: orderData.orderId,
+                  totalAmount: getTotalPrice(),
+                  transactionId: result.transaction_id,
+                  paymentType: result.payment_type || 'Online Payment',
+                  status: 'pending'
+                });
+                setShowPaymentSuccessPopup(true);
+              }
+            } catch {}
+            setCart([]);
+            const resetSelections = {};
+            menu.forEach(item => { resetSelections[item.id_menu] = { spiciness: '', temperature: '' }; });
+            setItemSelections(resetSelections);
+            setIsCartSidebarOpen(false);
           },
           onError: () => alert('Pembayaran gagal! Silakan coba lagi.'),
           onClose: () => alert('Anda menutup pop-up pembayaran tanpa menyelesaikan transaksi.')
@@ -344,36 +314,42 @@ function MenuPage() {
           payment_status: 'Belum Bayar',
           payment_method: 'cash'
         };
+        const payloadStr = JSON.stringify(orderPayload);
+        if (payloadStr.includes('true') || payloadStr.includes('false')) {
+          alert('Error: Data mengandung nilai boolean yang tidak diperbolehkan'); return;
+        }
         const orderResponse = await fetch(`${API_BASE_URL}/orders`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderPayload)
         });
         if (!orderResponse.ok) {
-          let errorMessage = 'Terjadi kesalahan saat mengirim pesanan.';
-          try { const ed = await orderResponse.json(); errorMessage = ed.message || ed.error || errorMessage; } catch {}
-          throw new Error(errorMessage);
+          const errorData = await orderResponse.json();
+          throw new Error(errorData.message || errorData.error || 'Terjadi kesalahan saat mengirim pesanan.');
         }
         await orderResponse.json();
         setShowOrderSuccessPopup(true);
-        setCart([]); const resetSel = {}; menu.forEach(it => resetSel[it.id_menu] = { spiciness: '', temperature: '' }); setItemSelections(resetSel); setIsCartSidebarOpen(false);
+        setCart([]);
+        const resetSelections = {};
+        menu.forEach(item => { resetSelections[item.id_menu] = { spiciness: '', temperature: '' }; });
+        setItemSelections(resetSelections);
+        setIsCartSidebarOpen(false);
       } catch (error) {
-        alert(`Gagal mengirim pesanan: ${error.message}`);
+        let errorMessage = error.message;
+        if (error.message.includes('operator does not exist')) {
+          errorMessage = 'Terjadi kesalahan format data pada server. Silakan coba lagi atau hubungi admin.';
+        }
+        alert(`Gagal mengirim pesanan: ${errorMessage}`);
         return;
       }
     }
     setIsPaymentMethodModalOpen(false);
   };
 
-  // Tutup keranjang → buka modal pembayaran
   const handlePlaceOrderClick = () => {
-    if (getTotalItemsInCart() === 0) {
-      alert('Keranjang belanja kosong! Silakan pilih item terlebih dahulu.');
-      return;
-    }
+    if (getTotalItemsInCart() === 0) { alert('Keranjang belanja kosong! Silakan pilih item terlebih dahulu.'); return; }
     setIsCartSidebarOpen(false);
     setIsPaymentMethodModalOpen(true);
   };
 
-  // Close handlers
   const handleCloseOrderSuccessPopup = () => setShowOrderSuccessPopup(false);
   const handleClosePaymentSuccessPopup = () => { setShowPaymentSuccessPopup(false); setPaymentSuccessData(null); };
   const closeCartSidebar = () => setIsCartSidebarOpen(false);
@@ -382,12 +358,10 @@ function MenuPage() {
     return (
       <div className="menu-message">
         <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'12px'}}>
-          <div style={{width:'20px',height:'20px',border:'3px solid #e2e8f0',borderTop:'3px solid #667eea',borderRadius:'50%',animation:'spin 1s linear infinite'}}></div>
+          <div style={{width:20,height:20,border:'3px solid #e2e8f0',borderTop:'3px solid #667eea',borderRadius:'50%',animation:'spin 1s linear infinite'}}></div>
           Memuat menu...
         </div>
-        <style>{`
-          @keyframes spin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
-        `}</style>
+        <style>{`@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
@@ -395,18 +369,16 @@ function MenuPage() {
   if (error) {
     return (
       <div className="menu-message menu-error">
-        {error}
-        <br />
+        {error}<br />
         <button
           onClick={fetchMenu}
           style={{
-            marginTop:'16px', padding:'12px 24px',
-            background:'var(--gradient-primary)', color:'white',
-            border:'none', borderRadius:'25px', cursor:'pointer', fontWeight:'600',
-            transition:'all .3s ease', boxShadow:'0 4px 12px rgba(102,126,234,.3)'
+            marginTop:'16px',padding:'12px 24px',background:'var(--gradient-primary)',color:'#fff',
+            border:'none',borderRadius:'25px',cursor:'pointer',fontWeight:600,transition:'all .3s',
+            boxShadow:'0 4px 12px rgba(102,126,234,.3)'
           }}
-          onMouseEnter={(e)=>{ e.target.style.transform='translateY(-2px)'; e.target.style.boxShadow='0 8px 20px rgba(102,126,234,.4)'; }}
-          onMouseLeave={(e)=>{ e.target.style.transform='translateY(0)'; e.target.style.boxShadow='0 4px 12px rgba(102,126,234,.3)'; }}
+          onMouseEnter={(e)=>{e.target.style.transform='translateY(-2px)';e.target.style.boxShadow='0 8px 20px rgba(102,126,234,.4)';}}
+          onMouseLeave={(e)=>{e.target.style.transform='translateY(0)';e.target.style.boxShadow='0 4px 12px rgba(102,126,234,.3)';}}
         >
           Coba Lagi
         </button>
@@ -414,28 +386,29 @@ function MenuPage() {
     );
   }
 
-  // Kelompok kategori yang tersedia
   const kategoriMenu = {};
   menu.forEach(item => {
     const isAvailable = item.is_available === 1 || item.is_available === true;
-    if (isAvailable) (kategoriMenu[item.category] ||= []).push(item);
+    if (isAvailable) {
+      const categoryKey = item.category;
+      if (!kategoriMenu[categoryKey]) kategoriMenu[categoryKey] = [];
+      kategoriMenu[categoryKey].push(item);
+    }
   });
 
   const categoriesOrder = [
-    'makanan-nasi', 'makanan-pelengkap', 'minuman-kopi', 'minuman-nonkopi',
-    'menu mie-banggodrong', 'menu mie-aceh', 'menu mie-toping',
-    'camilan-manis', 'camilan-gurih', 'lain-lain'
+    'makanan-nasi','makanan-pelengkap','minuman-kopi','minuman-nonkopi',
+    'menu mie-banggodrong','menu mie-aceh','menu mie-toping','camilan-manis','camilan-gurih','lain-lain'
   ];
 
   return (
     <div className="menu-page-container">
-      {/* Navbar */}
       <nav className="main-navbar">
         <div className="navbar-logo-group">
           <img src={logo} alt="Logo Mandela Corner" className="navbar-logo" />
           <div className="navbar-text">
             <span className="navbar-app-name">Mandela Corner</span>
-            <span className="navbar-slogan">Pesan makanan &amp; minuman favoritmu!</span>
+            <span className="navbar-slogan">Pesan makanan & minuman favoritmu!</span>
           </div>
         </div>
         <button className={`cart-toggle-button ${isCartSidebarOpen ? 'hidden' : ''}`} onClick={() => setIsCartSidebarOpen(true)}>
@@ -443,14 +416,9 @@ function MenuPage() {
         </button>
       </nav>
 
-      {/* Konten utama */}
       <div className="main-menu-content">
-        <h1 className="menu-page-title">
-          Menu Restoran {tableNumber ? `(${decodeURIComponent(tableNumber)})` : 'Online'}
-        </h1>
-        <p className="menu-page-description">
-          Silakan pilih makanan dan minuman Anda. Pembayaran dapat dilakukan di kasir atau online.
-        </p>
+        <h1 className="menu-page-title">Menu Restoran {tableNumber ? `(${decodeURIComponent(tableNumber)})` : 'Online'}</h1>
+        <p className="menu-page-description">Silakan pilih makanan dan minuman Anda. Pembayaran dapat dilakukan di kasir atau online.</p>
 
         {menu.length === 0 && !loading && !error && (
           <p className="menu-message no-menu-available">Belum ada menu yang tersedia.</p>
@@ -458,8 +426,7 @@ function MenuPage() {
 
         {categoriesOrder.map(categoryKey => {
           const items = kategoriMenu[categoryKey];
-          if (!items?.length) return null;
-
+          if (!items || items.length === 0) return null;
           const displayTitle = categoryKey.replace(/-/g, ' ').toUpperCase();
 
           return (
@@ -473,8 +440,8 @@ function MenuPage() {
                   return (
                     <div key={item.id_menu} className="menu-item-card">
                       <img
-                        src={item.image_url || 'https://placehold.co/180x180/667eea/FFFFFF?text=No+Image'}
-                        onError={(e) => { e.target.onerror=null; e.target.src='https://placehold.co/180x180/667eea/FFFFFF?text=No+Image'; }}
+                        src={item.image_url ? item.image_url : 'https://placehold.co/180x180/667eea/FFFFFF?text=No+Image'}
+                        onError={(e)=>{e.target.onerror=null;e.target.src='https://placehold.co/180x180/667eea/FFFFFF?text=No+Image';}}
                         alt={item.name}
                         className="menu-item-image"
                       />
@@ -483,65 +450,43 @@ function MenuPage() {
                         <p className="menu-item-description">{item.description || 'Deskripsi tidak tersedia.'}</p>
                         <p className="menu-item-price">Rp {formatPrice(item.price)}</p>
 
-                        {/* Opsi Kepedasan */}
                         {item.category && item.category.startsWith('menu mie') && (
                           <div className="item-options-group">
                             <p className="option-label">Kepedasan:</p>
                             <label>
-                              <input
-                                type="radio"
-                                name={`spiciness-${item.id_menu}`}
-                                value="tidak pedas"
+                              <input type="radio" name={`spiciness-${item.id_menu}`} value="tidak pedas"
                                 checked={currentOptions.spiciness === 'tidak pedas'}
-                                onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'tidak pedas')}
-                              />
+                                onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'tidak pedas')} />
                               Tidak Pedas
                             </label>
                             <label>
-                              <input
-                                type="radio"
-                                name={`spiciness-${item.id_menu}`}
-                                value="pedas sedang"
+                              <input type="radio" name={`spiciness-${item.id_menu}`} value="pedas sedang"
                                 checked={currentOptions.spiciness === 'pedas sedang'}
-                                onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'pedas sedang')}
-                              />
+                                onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'pedas sedang')} />
                               Pedas Sedang
                             </label>
                             <label>
-                              <input
-                                type="radio"
-                                name={`spiciness-${item.id_menu}`}
-                                value="pedas"
+                              <input type="radio" name={`spiciness-${item.id_menu}`} value="pedas"
                                 checked={currentOptions.spiciness === 'pedas'}
-                                onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'pedas')}
-                              />
+                                onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'pedas')} />
                               Pedas
                             </label>
                           </div>
                         )}
 
-                        {/* Opsi Suhu */}
                         {item.category && item.category.startsWith('minuman') && (
                           <div className="item-options-group">
                             <p className="option-label">Suhu:</p>
                             <label>
-                              <input
-                                type="radio"
-                                name={`temperature-${item.id_menu}`}
-                                value="dingin"
+                              <input type="radio" name={`temperature-${item.id_menu}`} value="dingin"
                                 checked={currentOptions.temperature === 'dingin'}
-                                onChange={() => handleOptionChange(item.id_menu, 'temperature', 'dingin')}
-                              />
+                                onChange={() => handleOptionChange(item.id_menu, 'temperature', 'dingin')} />
                               Dingin
                             </label>
                             <label>
-                              <input
-                                type="radio"
-                                name={`temperature-${item.id_menu}`}
-                                value="tidak dingin"
+                              <input type="radio" name={`temperature-${item.id_menu}`} value="tidak dingin"
                                 checked={currentOptions.temperature === 'tidak dingin'}
-                                onChange={() => handleOptionChange(item.id_menu, 'temperature', 'tidak dingin')}
-                              />
+                                onChange={() => handleOptionChange(item.id_menu, 'temperature', 'tidak dingin')} />
                               Tidak Dingin
                             </label>
                           </div>
@@ -568,7 +513,7 @@ function MenuPage() {
         })}
       </div>
 
-      {/* Sidebar keranjang */}
+      {/* Sidebar Keranjang */}
       <div className={`cart-sidebar ${isCartSidebarOpen ? 'open' : ''}`}>
         <div className="cart-sidebar-header">
           <h3>🛒 Keranjang Anda ({getTotalItemsInCart()})</h3>
@@ -581,23 +526,14 @@ function MenuPage() {
           ) : (
             cart.map((item, index) => (
               <div key={index} className="cart-item">
-                <button
-                  onClick={() => deleteFromCart(item)}
-                  className="remove-from-cart-button"
-                  title="Hapus item"
-                >
-                  ×
-                </button>
-
+                <button onClick={() => deleteFromCart(item)} className="remove-from-cart-button" title="Hapus item">×</button>
                 <div className="cart-item-top-row">
                   <div className="cart-item-left">
                     <span className="cart-item-quantity">{item.quantity}x</span>
                     <span className="cart-item-name">{item.name}</span>
                   </div>
                 </div>
-
                 <div className="cart-item-price">Rp {formatPrice(item.price * item.quantity)}</div>
-
                 {(item.options.spiciness || item.options.temperature) && (
                   <div className="cart-item-options">
                     {item.options.spiciness && <span className="cart-item-option">{item.options.spiciness}</span>}
@@ -609,10 +545,10 @@ function MenuPage() {
           )}
         </div>
 
-        {/* Footer keranjang (summary + tombol) */}
         <div className="cart-summary-total">
           <p>Total: <strong>Rp {formatPrice(getTotalPrice())}</strong></p>
         </div>
+
         <button
           onClick={handlePlaceOrderClick}
           disabled={getTotalItemsInCart() === 0}
@@ -623,20 +559,20 @@ function MenuPage() {
       </div>
       {isCartSidebarOpen && <div className="cart-overlay" onClick={closeCartSidebar}></div>}
 
-      {/* Modal metode pembayaran */}
+      {/* Modal Metode Pembayaran */}
       <PaymentMethodModal
         isOpen={isPaymentMethodModalOpen}
         onClose={() => setIsPaymentMethodModalOpen(false)}
         onSelectMethod={processOrder}
       />
 
-      {/* Popup bayar di kasir */}
+      {/* Popup Cash */}
       {showOrderSuccessPopup && (
         <div className="payment-success-overlay">
           <div className="payment-success-content">
             <div className="success-icon">🎉</div>
-            <h2 style={{ color: 'var(--success-color)', marginBottom: '20px' }}>Pesanan Berhasil Dibuat!</h2>
-            <p style={{ fontSize: '1.1em', color: '#555', marginBottom: '20px' }}>
+            <h2 style={{ color: 'var(--success-color)', marginBottom: 20 }}>Pesanan Berhasil Dibuat!</h2>
+            <p style={{ fontSize: '1.1em', color: '#555', marginBottom: 20 }}>
               Pesanan Anda telah kami terima dan sedang diproses. Silakan lakukan pembayaran di kasir.
             </p>
             <button onClick={handleCloseOrderSuccessPopup} className="success-button">OK, Mengerti</button>
@@ -644,15 +580,15 @@ function MenuPage() {
         </div>
       )}
 
-      {/* Popup online (success/pending) */}
+      {/* Popup Online (success/pending) */}
       {showPaymentSuccessPopup && paymentSuccessData && (
         <div className="payment-success-overlay">
           <div className="payment-success-content">
             {paymentSuccessData.status === 'pending' ? (
               <>
                 <div className="pending-icon">⏳</div>
-                <h2 style={{ color: 'var(--warning-color)', marginBottom: '20px' }}>Pembayaran Sedang Diproses!</h2>
-                <p style={{ fontSize: '1.1em', color: '#555', marginBottom: '15px' }}>
+                <h2 style={{ color: 'var(--warning-color)', marginBottom: 20 }}>Pembayaran Sedang Diproses!</h2>
+                <p style={{ fontSize: '1.1em', color: '#555', marginBottom: 15 }}>
                   Pembayaran Anda sedang dalam proses verifikasi.
                 </p>
                 <div className="success-details pending">
@@ -661,16 +597,16 @@ function MenuPage() {
                   <p><strong>Metode:</strong> {paymentSuccessData.paymentType}</p>
                   <p><strong>ID Transaksi:</strong> {paymentSuccessData.transactionId}</p>
                 </div>
-                <p style={{ fontSize: '0.95em', color: '#6c757d', marginBottom: '20px' }}>
-                  Kami akan memproses pesanan Anda setelah pembayaran dikonfirmasi.
+                <p style={{ fontSize: '.95em', color: '#6c757d', marginBottom: 20 }}>
+                  Kami akan memproses pesanan Anda setelah pembayaran dikonfirmasi. Terima kasih atas kesabaran Anda!
                 </p>
                 <button onClick={handleClosePaymentSuccessPopup} className="success-button pending">OK, Mengerti</button>
               </>
             ) : (
               <>
                 <div className="success-icon">🎉</div>
-                <h2 style={{ color: 'var(--success-color)', marginBottom: '20px' }}>Pembayaran Berhasil!</h2>
-                <p style={{ fontSize: '1.1em', color: '#555', marginBottom: '15px' }}>
+                <h2 style={{ color: 'var(--success-color)', marginBottom: 20 }}>Pembayaran Berhasil!</h2>
+                <p style={{ fontSize: '1.1em', color: '#555', marginBottom: 15 }}>
                   Terima kasih! Pembayaran Anda telah berhasil dan pesanan sedang diproses.
                 </p>
                 <div className="success-details">
@@ -679,7 +615,7 @@ function MenuPage() {
                   <p><strong>Metode:</strong> {paymentSuccessData.paymentType}</p>
                   <p><strong>ID Transaksi:</strong> {paymentSuccessData.transactionId}</p>
                 </div>
-                <p style={{ fontSize: '0.95em', color: '#6c757d', marginBottom: '20px' }}>
+                <p style={{ fontSize: '.95em', color: '#6c757d', marginBottom: 20 }}>
                   Pesanan Anda akan segera disiapkan. Silakan menunggu di tempat duduk Anda.
                 </p>
                 <button onClick={handleClosePaymentSuccessPopup} className="success-button">OK, Mengerti</button>
