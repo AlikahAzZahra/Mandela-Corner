@@ -1,10 +1,10 @@
-// client/src/pages/MenuPage.jsx - IMPROVED MODERN DESIGN + QTY CENTER FIX
+// client/src/pages/MenuPage.jsx - MODERN UI + MOBILE CART BOTTOM FIX
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import '../styles/MenuPage.css';
 import logo from '../assets/logo.jpeg';
 
-/* ===== PaymentMethodModal (tetap, hanya tampilan) ===== */
+/* ===== PaymentMethodModal (UI) ===== */
 const PaymentMethodModal = ({ isOpen, onClose, onSelectMethod }) => {
   if (!isOpen) return null;
 
@@ -96,9 +96,7 @@ function MenuPage() {
     }
   };
 
-  useEffect(() => {
-    fetchMenu();
-  }, []);
+  useEffect(() => { fetchMenu(); }, []);
 
   useEffect(() => {
     const open = isCartSidebarOpen || isPaymentMethodModalOpen || showOrderSuccessPopup || showPaymentSuccessPopup;
@@ -545,17 +543,21 @@ function MenuPage() {
           )}
         </div>
 
-        <div className="cart-summary-total">
-          <p>Total: <strong>Rp {formatPrice(getTotalPrice())}</strong></p>
-        </div>
+        {/* ===== FIX: selalu terlihat di HP ===== */}
+        <div className="cart-bottom-section">
+          <div className="cart-summary-total">
+            <p>Total: <strong>Rp {formatPrice(getTotalPrice())}</strong></p>
+          </div>
 
-        <button
-          onClick={handlePlaceOrderClick}
-          disabled={getTotalItemsInCart() === 0}
-          className="place-order-button"
-        >
-          🛒 Pesan Sekarang
-        </button>
+          <button
+            onClick={handlePlaceOrderClick}
+            disabled={getTotalItemsInCart() === 0}
+            className="place-order-button"
+          >
+            🛒 Pesan Sekarang
+          </button>
+        </div>
+        {/* ===== end fix ===== */}
       </div>
       {isCartSidebarOpen && <div className="cart-overlay" onClick={closeCartSidebar}></div>}
 
@@ -575,7 +577,7 @@ function MenuPage() {
             <p style={{ fontSize: '1.1em', color: '#555', marginBottom: 20 }}>
               Pesanan Anda telah kami terima dan sedang diproses. Silakan lakukan pembayaran di kasir.
             </p>
-            <button onClick={handleCloseOrderSuccessPopup} className="success-button">OK, Mengerti</button>
+            <button onClick={setShowOrderSuccessPopup.bind(null, false)} className="success-button">OK, Mengerti</button>
           </div>
         </div>
       )}
@@ -600,7 +602,7 @@ function MenuPage() {
                 <p style={{ fontSize: '.95em', color: '#6c757d', marginBottom: 20 }}>
                   Kami akan memproses pesanan Anda setelah pembayaran dikonfirmasi. Terima kasih atas kesabaran Anda!
                 </p>
-                <button onClick={handleClosePaymentSuccessPopup} className="success-button pending">OK, Mengerti</button>
+                <button onClick={() => setShowPaymentSuccessPopup(false)} className="success-button pending">OK, Mengerti</button>
               </>
             ) : (
               <>
@@ -618,7 +620,7 @@ function MenuPage() {
                 <p style={{ fontSize: '.95em', color: '#6c757d', marginBottom: 20 }}>
                   Pesanan Anda akan segera disiapkan. Silakan menunggu di tempat duduk Anda.
                 </p>
-                <button onClick={handleClosePaymentSuccessPopup} className="success-button">OK, Mengerti</button>
+                <button onClick={() => setShowPaymentSuccessPopup(false)} className="success-button">OK, Mengerti</button>
               </>
             )}
           </div>
