@@ -1,9 +1,46 @@
-// client/src/pages/MenuPage.jsx - FIXED VERSION (MINIMAL CHANGES)
+// client/src/pages/MenuPage.jsx - IMPROVED MODERN DESIGN
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import '../styles/MenuPage.css'; // Import file CSS
-import PaymentMethodModal from '../components/PaymentMethodModal'; // Import komponen modal baru
+import '../styles/MenuPage.css'; // Import file CSS yang sudah diperbaharui
 import logo from '../assets/logo.jpeg';
+
+// Komponen PaymentMethodModal yang sudah diperbaharui
+const PaymentMethodModal = ({ isOpen, onClose, onSelectMethod }) => {
+    if (!isOpen) return null;
+
+    const handleBackdropClick = (e) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+
+    return (
+        <div className="payment-method-modal-overlay" onClick={handleBackdropClick}>
+            <div className="payment-method-modal">
+                <div className="payment-method-header">
+                    <button onClick={onClose} className="payment-method-close">
+                        ×
+                    </button>
+                    <h2>Pilih Metode Pembayaran</h2>
+                </div>
+                <div className="payment-method-content">
+                    <button
+                        onClick={() => onSelectMethod('bayar di kasir')}
+                        className="payment-method-button cash"
+                    >
+                        Bayar di Kasir
+                    </button>
+                    <button
+                        onClick={() => onSelectMethod('bayar online')}
+                        className="payment-method-button online"
+                    >
+                        Bayar Online (Midtrans)
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 function MenuPage() {
     const { tableNumber } = useParams();
@@ -742,7 +779,27 @@ function MenuPage() {
     };
 
     if (loading) {
-        return <div className="menu-message">Memuat menu...</div>;
+        return (
+            <div className="menu-message">
+                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px'}}>
+                    <div style={{
+                        width: '20px', 
+                        height: '20px', 
+                        border: '3px solid #e2e8f0',
+                        borderTop: '3px solid #667eea',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                    }}></div>
+                    Memuat menu...
+                </div>
+                <style>{`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `}</style>
+            </div>
+        );
     }
 
     if (error) {
@@ -753,13 +810,24 @@ function MenuPage() {
                 <button 
                     onClick={fetchMenu} 
                     style={{
-                        marginTop: '10px',
-                        padding: '8px 16px',
-                        backgroundColor: '#007bff',
+                        marginTop: '16px',
+                        padding: '12px 24px',
+                        background: 'var(--gradient-primary)',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
+                        borderRadius: '25px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        transition: 'all 0.3s ease',
+                        boxShadow: '0 4px 12px rgba(102,126,234,0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 8px 20px rgba(102,126,234,0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 4px 12px rgba(102,126,234,0.3)';
                     }}
                 >
                     Coba Lagi
@@ -801,7 +869,7 @@ function MenuPage() {
                     </div>
                 </div>
                 <button className={`cart-toggle-button ${isCartSidebarOpen ? 'hidden' : ''}`} onClick={() => setIsCartSidebarOpen(true)}>
-                    <i className="fa-solid fa-cart-shopping"></i> Keranjang ({getTotalItemsInCart()})
+                    🛒 Keranjang ({getTotalItemsInCart()})
                 </button>
             </nav>
             
@@ -838,97 +906,99 @@ function MenuPage() {
                                         <div key={item.id_menu} className="menu-item-card">
                                             <img 
                                                 /* ⬇️ REVISI: gunakan URL gambar langsung dari backend (tanpa prefix server) */
-                                                src={item.image_url ? item.image_url : 'https://placehold.co/150x150/CCCCCC/000000?text=No+Image'}
+                                                src={item.image_url ? item.image_url : 'https://placehold.co/180x180/667eea/FFFFFF?text=No+Image'}
                                                 onError={(e) => { 
                                                     e.target.onerror = null; 
-                                                    e.target.src = 'https://placehold.co/150x150/CCCCCC/000000?text=No+Image'; 
+                                                    e.target.src = 'https://placehold.co/180x180/667eea/FFFFFF?text=No+Image'; 
                                                 }} 
                                                 alt={item.name} 
                                                 className="menu-item-image" 
                                             />
-                                            <h3 className="menu-item-name">{item.name}</h3>
-                                            <p className="menu-item-description">{item.description || 'Deskripsi tidak tersedia.'}</p>
-                                            <p className="menu-item-price">Rp {formatPrice(item.price)}</p>
-                                            
-                                            {/* Opsi Tingkat Kepedasan untuk MENU MIE */}
-                                            {item.category && item.category.startsWith('menu mie') && (
-                                                <div className="item-options-group">
-                                                    <p className="option-label">Kepedasan:</p>
-                                                    <label>
-                                                        <input 
-                                                            type="radio" 
-                                                            name={`spiciness-${item.id_menu}`} 
-                                                            value="tidak pedas" 
-                                                            checked={currentOptions.spiciness === 'tidak pedas'} 
-                                                            onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'tidak pedas')} 
-                                                        /> 
-                                                        Tidak Pedas
-                                                    </label>
-                                                    <label>
-                                                        <input 
-                                                            type="radio" 
-                                                            name={`spiciness-${item.id_menu}`} 
-                                                            value="pedas sedang" 
-                                                            checked={currentOptions.spiciness === 'pedas sedang'} 
-                                                            onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'pedas sedang')} 
-                                                        /> 
-                                                        Pedas Sedang
-                                                    </label>
-                                                    <label>
-                                                        <input 
-                                                            type="radio" 
-                                                            name={`spiciness-${item.id_menu}`} 
-                                                            value="pedas" 
-                                                            checked={currentOptions.spiciness === 'pedas'} 
-                                                            onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'pedas')} 
-                                                        /> 
-                                                        Pedas
-                                                    </label>
-                                                </div>
-                                            )}
+                                            <div className="menu-item-content">
+                                                <h3 className="menu-item-name">{item.name}</h3>
+                                                <p className="menu-item-description">{item.description || 'Deskripsi tidak tersedia.'}</p>
+                                                <p className="menu-item-price">Rp {formatPrice(item.price)}</p>
+                                                
+                                                {/* Opsi Tingkat Kepedasan untuk MENU MIE */}
+                                                {item.category && item.category.startsWith('menu mie') && (
+                                                    <div className="item-options-group">
+                                                        <p className="option-label">Kepedasan:</p>
+                                                        <label>
+                                                            <input 
+                                                                type="radio" 
+                                                                name={`spiciness-${item.id_menu}`} 
+                                                                value="tidak pedas" 
+                                                                checked={currentOptions.spiciness === 'tidak pedas'} 
+                                                                onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'tidak pedas')} 
+                                                            /> 
+                                                            Tidak Pedas
+                                                        </label>
+                                                        <label>
+                                                            <input 
+                                                                type="radio" 
+                                                                name={`spiciness-${item.id_menu}`} 
+                                                                value="pedas sedang" 
+                                                                checked={currentOptions.spiciness === 'pedas sedang'} 
+                                                                onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'pedas sedang')} 
+                                                            /> 
+                                                            Pedas Sedang
+                                                        </label>
+                                                        <label>
+                                                            <input 
+                                                                type="radio" 
+                                                                name={`spiciness-${item.id_menu}`} 
+                                                                value="pedas" 
+                                                                checked={currentOptions.spiciness === 'pedas'} 
+                                                                onChange={() => handleOptionChange(item.id_menu, 'spiciness', 'pedas')} 
+                                                            /> 
+                                                            Pedas
+                                                        </label>
+                                                    </div>
+                                                )}
 
-                                            {/* Opsi Dingin/Tidak Dingin untuk Minuman */}
-                                            {item.category && item.category.startsWith('minuman') && (
-                                                <div className="item-options-group">
-                                                    <p className="option-label">Suhu:</p>
-                                                    <label>
-                                                        <input 
-                                                            type="radio" 
-                                                            name={`temperature-${item.id_menu}`} 
-                                                            value="dingin" 
-                                                            checked={currentOptions.temperature === 'dingin'} 
-                                                            onChange={() => handleOptionChange(item.id_menu, 'temperature', 'dingin')} 
-                                                        /> 
-                                                        Dingin
-                                                    </label>
-                                                    <label>
-                                                        <input 
-                                                            type="radio" 
-                                                            name={`temperature-${item.id_menu}`} 
-                                                            value="tidak dingin" 
-                                                            checked={currentOptions.temperature === 'tidak dingin'} 
-                                                            onChange={() => handleOptionChange(item.id_menu, 'temperature', 'tidak dingin')} 
-                                                        /> 
-                                                        Tidak Dingin
-                                                    </label>
-                                                </div>
-                                            )}
+                                                {/* Opsi Dingin/Tidak Dingin untuk Minuman */}
+                                                {item.category && item.category.startsWith('minuman') && (
+                                                    <div className="item-options-group">
+                                                        <p className="option-label">Suhu:</p>
+                                                        <label>
+                                                            <input 
+                                                                type="radio" 
+                                                                name={`temperature-${item.id_menu}`} 
+                                                                value="dingin" 
+                                                                checked={currentOptions.temperature === 'dingin'} 
+                                                                onChange={() => handleOptionChange(item.id_menu, 'temperature', 'dingin')} 
+                                                            /> 
+                                                            Dingin
+                                                        </label>
+                                                        <label>
+                                                            <input 
+                                                                type="radio" 
+                                                                name={`temperature-${item.id_menu}`} 
+                                                                value="tidak dingin" 
+                                                                checked={currentOptions.temperature === 'tidak dingin'} 
+                                                                onChange={() => handleOptionChange(item.id_menu, 'temperature', 'tidak dingin')} 
+                                                            /> 
+                                                            Tidak Dingin
+                                                        </label>
+                                                    </div>
+                                                )}
 
-                                            <div className="quantity-control">
-                                                <button
-                                                    onClick={() => removeFromCart({ id_menu: item.id_menu, options: currentOptions })}
-                                                    disabled={currentQuantityInCart === 0}
-                                                    className="quantity-buttons removees"
-                                                >
-                                                    -
-                                                </button>
-                                                <span className="quantity-display">{currentQuantityInCart}</span>
-                                                <button
-                                                    onClick={() => addToCart(item)}
-                                                    className="quantity-buttons add"
-                                                >
-                                                    +
-                                                </button>
+                                                <div className="quantity-control">
+                                                    <button
+                                                        onClick={() => removeFromCart({ id_menu: item.id_menu, options: currentOptions })}
+                                                        disabled={currentQuantityInCart === 0}
+                                                        className="quantity-buttons removees"
+                                                    >
+                                                        −
+                                                    </button>
+                                                    <span className="quantity-display">{currentQuantityInCart}</span>
+                                                    <button
+                                                        onClick={() => addToCart(item)}
+                                                        className="quantity-buttons add"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -942,12 +1012,12 @@ function MenuPage() {
             {/* Sidebar untuk keranjang */}
             <div
                 className={`cart-sidebar ${isCartSidebarOpen ? 'open' : ''}`}
-                // PATCH: tempelkan di bawah navbar (70px) dan penuhi sisa tinggi viewport
-                style={{ top: '70px', height: 'calc(100vh - 70px)' }}
+                // PATCH: tempelkan di bawah navbar (75px) dan penuhi sisa tinggi viewport
+                style={{ top: '75px', height: 'calc(100vh - 75px)' }}
             >
                 <div className="cart-sidebar-header">
-                    <h3>Keranjang Anda ({getTotalItemsInCart()})</h3>
-                    <button onClick={closeCartSidebar} className="close-sidebar-button">&times;</button>
+                    <h3>🛒 Keranjang Anda ({getTotalItemsInCart()})</h3>
+                    <button onClick={closeCartSidebar} className="close-sidebar-button">×</button>
                 </div>
                 <div className="cart-items">
                     {cart.length === 0 ? (
@@ -961,7 +1031,7 @@ function MenuPage() {
                                     className="remove-from-cart-button"
                                     title="Hapus item"
                                 >
-                                    &times;
+                                    ×
                                 </button>
                                 
                                 {/* Top row: Quantity dan Nama sejajar */}
@@ -1004,7 +1074,7 @@ function MenuPage() {
                     disabled={getTotalItemsInCart() === 0}
                     className="place-order-button"
                 >
-                    Pesan Sekarang
+                    🛒 Pesan Sekarang
                 </button>
             </div>
             {isCartSidebarOpen && <div className="cart-overlay" onClick={closeCartSidebar}></div>}
@@ -1020,23 +1090,16 @@ function MenuPage() {
             {showOrderSuccessPopup && (
                 <div className="payment-success-overlay">
                     <div className="payment-success-content">
-                        <h2 style={{ color: '#28a745', marginBottom: '20px' }}>Pesanan Berhasil Dibuat!</h2>
+                        <div className="success-icon">🎉</div>
+                        <h2 style={{ color: 'var(--success-color)', marginBottom: '20px' }}>Pesanan Berhasil Dibuat!</h2>
                         <p style={{ fontSize: '1.1em', color: '#555', marginBottom: '20px' }}>
                             Pesanan Anda telah kami terima dan sedang diproses. Silakan lakukan pembayaran di kasir.
                         </p>
                         <button
                             onClick={handleCloseOrderSuccessPopup}
-                            style={{
-                                padding: '10px 20px',
-                                fontSize: '1em',
-                                backgroundColor: '#007bff',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '5px',
-                                cursor: 'pointer'
-                            }}
+                            className="success-button"
                         >
-                            OK
+                            OK, Mengerti
                         </button>
                     </div>
                 </div>
@@ -1049,84 +1112,57 @@ function MenuPage() {
                         {paymentSuccessData.status === 'pending' ? (
                             // Popup untuk pembayaran pending
                             <>
-                                <div style={{ fontSize: '3em', marginBottom: '15px' }}>⏳</div>
-                                <h2 style={{ color: '#ffc107', marginBottom: '20px' }}>Pembayaran Sedang Diproses!</h2>
+                                <div className="pending-icon">⏳</div>
+                                <h2 style={{ color: 'var(--warning-color)', marginBottom: '20px' }}>
+                                    Pembayaran Sedang Diproses!
+                                </h2>
                                 <p style={{ fontSize: '1.1em', color: '#555', marginBottom: '15px' }}>
                                     Pembayaran Anda sedang dalam proses verifikasi.
                                 </p>
-                                <div style={{ 
-                                    backgroundColor: '#fff3cd', 
-                                    padding: '15px', 
-                                    borderRadius: '8px', 
-                                    marginBottom: '20px',
-                                    border: '1px solid #ffeaa7'
-                                }}>
-                                    <p style={{ margin: '5px 0', fontSize: '0.9em' }}>
-                                        <strong>ID Pesanan:</strong> #{paymentSuccessData.orderId}
-                                    </p>
-                                    <p style={{ margin: '5px 0', fontSize: '0.9em' }}>
-                                        <strong>Total:</strong> Rp {formatPrice(paymentSuccessData.totalAmount)}
-                                    </p>
-                                    <p style={{ margin: '5px 0', fontSize: '0.9em' }}>
-                                        <strong>Metode:</strong> {paymentSuccessData.paymentType}
-                                    </p>
-                                    <p style={{ margin: '5px 0', fontSize: '0.9em' }}>
-                                        <strong>ID Transaksi:</strong> {paymentSuccessData.transactionId}
-                                    </p>
+                                <div className="success-details pending">
+                                    <p><strong>ID Pesanan:</strong> #{paymentSuccessData.orderId}</p>
+                                    <p><strong>Total:</strong> Rp {formatPrice(paymentSuccessData.totalAmount)}</p>
+                                    <p><strong>Metode:</strong> {paymentSuccessData.paymentType}</p>
+                                    <p><strong>ID Transaksi:</strong> {paymentSuccessData.transactionId}</p>
                                 </div>
                                 <p style={{ fontSize: '0.95em', color: '#6c757d', marginBottom: '20px' }}>
                                     Kami akan memproses pesanan Anda setelah pembayaran dikonfirmasi. 
                                     Terima kasih atas kesabaran Anda!
                                 </p>
+                                <button
+                                    onClick={handleClosePaymentSuccessPopup}
+                                    className="success-button pending"
+                                >
+                                    OK, Mengerti
+                                </button>
                             </>
                         ) : (
                             // Popup untuk pembayaran berhasil
                             <>
-                                <div style={{ fontSize: '3em', marginBottom: '15px' }}>🎉</div>
-                                <h2 style={{ color: '#28a745', marginBottom: '20px' }}>Pembayaran Berhasil!</h2>
+                                <div className="success-icon">🎉</div>
+                                <h2 style={{ color: 'var(--success-color)', marginBottom: '20px' }}>
+                                    Pembayaran Berhasil!
+                                </h2>
                                 <p style={{ fontSize: '1.1em', color: '#555', marginBottom: '15px' }}>
                                     Terima kasih! Pembayaran Anda telah berhasil dan pesanan sedang diproses.
                                 </p>
-                                <div style={{ 
-                                    backgroundColor: '#d4edda', 
-                                    padding: '15px', 
-                                    borderRadius: '8px', 
-                                    marginBottom: '20px',
-                                    border: '1px solid #c3e6cb'
-                                }}>
-                                    <p style={{ margin: '5px 0', fontSize: '0.9em' }}>
-                                        <strong>ID Pesanan:</strong> #{paymentSuccessData.orderId}
-                                    </p>
-                                    <p style={{ margin: '5px 0', fontSize: '0.9em' }}>
-                                        <strong>Total Dibayar:</strong> Rp {formatPrice(paymentSuccessData.totalAmount)}
-                                    </p>
-                                    <p style={{ margin: '5px 0', fontSize: '0.9em' }}>
-                                        <strong>Metode:</strong> {paymentSuccessData.paymentType}
-                                    </p>
-                                    <p style={{ margin: '5px 0', fontSize: '0.9em' }}>
-                                        <strong>ID Transaksi:</strong> {paymentSuccessData.transactionId}
-                                    </p>
+                                <div className="success-details">
+                                    <p><strong>ID Pesanan:</strong> #{paymentSuccessData.orderId}</p>
+                                    <p><strong>Total Dibayar:</strong> Rp {formatPrice(paymentSuccessData.totalAmount)}</p>
+                                    <p><strong>Metode:</strong> {paymentSuccessData.paymentType}</p>
+                                    <p><strong>ID Transaksi:</strong> {paymentSuccessData.transactionId}</p>
                                 </div>
                                 <p style={{ fontSize: '0.95em', color: '#6c757d', marginBottom: '20px' }}>
                                     Pesanan Anda akan segera disiapkan. Silakan menunggu di tempat duduk Anda.
                                 </p>
+                                <button
+                                    onClick={handleClosePaymentSuccessPopup}
+                                    className="success-button"
+                                >
+                                    OK, Mengerti
+                                </button>
                             </>
                         )}
-                        <button
-                            onClick={() => { setShowPaymentSuccessPopup(false); setPaymentSuccessData(null); }}
-                            style={{
-                                padding: '12px 24px',
-                                fontSize: '1em',
-                                backgroundColor: paymentSuccessData.status === 'pending' ? '#ffc107' : '#28a745',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
-                            }}
-                        >
-                            OK, Mengerti
-                        </button>
                     </div>
                 </div>
             )}
