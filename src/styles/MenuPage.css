@@ -1271,7 +1271,7 @@ body.cart-open{ overflow: hidden; }
     border-radius: 20px;
   }
   
-  /* Quantity sangat compact */
+  /* Quantity sangat compact tanpa hover effects */
   .quantity-control{
     padding: 10px;
     gap: 10px;
@@ -1282,11 +1282,21 @@ body.cart-open{ overflow: hidden; }
     width: 32px;
     height: 32px;
     font-size: 1rem;
+    transition: none; /* No transitions */
+  }
+  
+  .quantity-buttons:hover{
+    /* No hover effects */
   }
   
   .quantity-display{
     font-size: 1em;
     padding: 4px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-style: normal; /* Ensure not italic */
   }
   
   /* Typography mobile kecil */
