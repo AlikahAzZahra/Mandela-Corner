@@ -86,16 +86,16 @@ body.cart-open{ overflow: hidden; }
 /* Default: cocok tablet/desktop kecil */
 .menu-items-grid{
   display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
   margin-bottom: 36px;
 }
 
-/* Phone portrait & kecil – tetap grid 2 kolom jika muat */
+/* Phone portrait & kecil – grid 2 kolom optimized */
 @media (max-width: 600px){
   .menu-items-grid{
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 }
 
@@ -117,7 +117,7 @@ body.cart-open{ overflow: hidden; }
 .menu-item-card:hover{ transform: translateY(-6px) scale(1.015); box-shadow: var(--hover-shadow); }
 .menu-item-card:hover::before{ opacity:1; }
 
-.menu-item-image{ width:100%; height:180px; object-fit:cover; margin:0; transition: transform .35s; position:relative; z-index:2; }
+.menu-item-image{ width:100%; height:120px; object-fit:cover; margin:0; transition: transform .35s; position:relative; z-index:2; }
 .menu-item-card:hover .menu-item-image{ transform: scale(1.04); }
 
 .menu-item-content{ padding:18px; display:flex; flex-direction:column; flex-grow:1; position:relative; z-index:2; }
@@ -297,7 +297,7 @@ body.cart-open{ overflow: hidden; }
 .menu-item-image-container {
   position: relative;
   width: 100%;
-  height: 150px;
+  height: 120px;
   overflow: hidden;
   border-radius: 12px 12px 0 0;
   background-color: #f8f9fa;
@@ -555,29 +555,42 @@ body.cart-open{ overflow: hidden; }
 @media (max-width: 992px){ :root{ --cart-w-desktop: 360px; } }
 @media (max-width: 768px){
   .menu-page-container{ flex-direction:column; }
-  .main-menu-content{ padding:16px 12px 24px; }
+  .main-menu-content{ padding:12px 8px 24px; }
   .cart-sidebar{ width:100vw; right:-100vw; top: var(--navbar-h); height: calc(100vh - var(--navbar-h)); border-left:none; }
-  .cart-sidebar.open{ right: 0; } /* gunakan right agar sticky di anak tetap berfungsi di mobile */
-  .main-navbar{ padding:0 16px; height:var(--navbar-h); }
-  .navbar-logo{ height:50px; width:50px; }
-  .navbar-text span:first-child{ font-size:1.3em; }
-  .navbar-text span:last-child{ font-size:.8em; }
-  .cart-toggle-button{ padding:10px 16px; font-size:.92em; }
-  .menu-item-image{ height:150px; }
-  .menu-item-content{ padding:14px; }
-  .quantity-control{ padding:12px; gap:12px; }
-  .place-order-button{ font-size:1rem; padding:15px 18px calc(15px + env(safe-area-inset-bottom, 8px)); }
+  .cart-sidebar.open{ right: 0; }
+  .main-navbar{ padding:0 12px; height:var(--navbar-h); }
+  .navbar-logo{ height:45px; width:45px; }
+  .navbar-text span:first-child{ font-size:1.2em; }
+  .navbar-text span:last-child{ font-size:.75em; }
+  .cart-toggle-button{ padding:8px 12px; font-size:.9em; }
+  .menu-item-image{ height:100px; }
+  .menu-item-content{ padding:12px; }
+  .menu-item-name{ font-size:0.95em; line-height:1.2; }
+  .menu-item-description{ font-size:0.8em; line-height:1.3; margin-bottom:8px; }
+  .menu-item-price{ font-size:1em; margin-bottom:8px; }
+  .quantity-control{ padding:10px; gap:10px; }
+  .place-order-button{ font-size:.95rem; padding:14px 16px calc(14px + env(safe-area-inset-bottom, 8px)); }
+  .menu-page-title{ font-size:1.8em; margin:12px 0 8px; }
+  .menu-category-title{ font-size:1.3em; padding:12px 0; margin:12px 0 12px; }
 }
 
 /* PHONE SANGAT KECIL */
 @media (max-width: 360px){
-  .main-navbar{ padding:0 10px; }
-  .navbar-text span:first-child{ font-size:1.12em; }
-  .cart-toggle-button{ padding:8px 12px; font-size:.85em; }
-  .main-menu-content{ padding:10px 8px; }
-  .menu-page-title{ font-size:1.5em; }
-  .menu-category-title{ font-size:1.2em; }
-  .menu-item-content{ padding:12px; }
+  .main-navbar{ padding:0 8px; }
+  .navbar-text span:first-child{ font-size:1em; }
+  .navbar-text span:last-child{ font-size:.7em; }
+  .cart-toggle-button{ padding:6px 10px; font-size:.8em; }
+  .main-menu-content{ padding:8px 6px; }
+  .menu-page-title{ font-size:1.4em; }
+  .menu-category-title{ font-size:1.1em; }
+  .menu-item-content{ padding:10px; }
+  .menu-item-image{ height:85px; }
+  .menu-item-name{ font-size:0.85em; }
+  .menu-item-description{ font-size:0.75em; }
+  .menu-item-price{ font-size:0.9em; }
+  .quantity-control{ padding:8px; gap:8px; }
+  .quantity-buttons{ width:32px; height:32px; font-size:1em; }
+  .quantity-display{ font-size:0.9em; padding:6px 10px; }
 }
 
 /* DARK MODE */
