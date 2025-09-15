@@ -163,17 +163,6 @@ const MenuItemImage = ({ imageUrl, altText, className, style }) => {
     setHasError(false);
   };
 
-  // Tambahkan test untuk CORS dan availability
-  const testImageUrl = (url) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve(true);
-      img.onerror = () => resolve(false);
-      img.crossOrigin = 'anonymous';
-      img.src = url;
-    });
-  };
-
   return (
     <div style={{ position: 'relative', ...style }}>
       {isLoading && (
@@ -820,7 +809,7 @@ const AdminPage = () => {
 
   /**
    * ========================
-   * Menu CRUD - DIPERBAIKI DENGAN IMAGE HANDLING
+   * Menu CRUD - DIPERBAIKI DENGAN ROBUST ERROR HANDLING
    * ========================
    */
   const handleImageChange = (e) => {
@@ -849,9 +838,146 @@ const AdminPage = () => {
     });
   };
 
+  // FUNGSI UNTUK MENCOBA BERBAGAI ENDPOINT UPDATE
+  const tryUpdateMenuWithMultipleEndpoints = async (menuId, payload) => {
+    console.log('=== TRYING MULTIPLE UPDATE ENDPOINTS ===');
+    console.log('Menu ID:', menuId);
+    console.log('Payload:', payload);
+
+    // Daftar endpoint yang akan dicoba
+    const endpoints = [
+      { url: `${apiBaseUrl}/menu/${menuId}`, method: 'PUT', name: 'Standard PUT /menu/{id}' },
+      { url: `${apiBaseUrl}/menu/${menuId}`, method: 'PATCH', name: 'PATCH /menu/{id}' },
+      { url: `${apiBaseUrl}/menu/update/${menuId}`, method: 'PUT', name: 'PUT /menu/update/{id}' },
+      { url: `${apiBaseUrl}/menu/update/${menuId}`, method: 'POST', name: 'POST /menu/update/{id}' },
+      { url: `${apiBaseUrl}/menus/${menuId}`, method: 'PUT', name: 'PUT /menus/{id}' },
+      { url: `${apiBaseUrl}/menus/${menuId}`, method: 'PATCH', name: 'PATCH /menus/{id}' },
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying: ${endpoint.name} - ${endpoint.method} ${endpoint.url}`);
+        
+        const response = await fetch(endpoint.url, {
+          method: endpoint.method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        console.log(`${endpoint.name} response status:`, response.status);
+
+        // Success status codes
+        if (response.status >= 200 && response.status <= 299) {
+          console.log(`✅ SUCCESS with ${endpoint.name}`);
+          
+          try {
+            const responseData = await response.json();
+            console.log('Response data:', responseData);
+          } catch (parseError) {
+            console.log('Response is not JSON, but status indicates success');
+          }
+          
+          return { success: true, method: endpoint.name };
+        }
+
+        // Log error details
+        let errorDetails = '';
+        try {
+          const errorData = await response.json();
+          errorDetails = JSON.stringify(errorData);
+        } catch {
+          errorDetails = await response.text();
+        }
+        
+        console.log(`❌ ${endpoint.name} failed: ${response.status} - ${errorDetails}`);
+
+      } catch (error) {
+        console.log(`❌ ${endpoint.name} error:`, error.message);
+      }
+    }
+
+    console.log('❌ All update endpoints failed');
+    return { success: false, method: null };
+  };
+
+  // FUNGSI UNTUK MENCOBA BERBAGAI ENDPOINT DELETE
+  const tryDeleteMenuWithMultipleEndpoints = async (menuId) => {
+    console.log('=== TRYING MULTIPLE DELETE ENDPOINTS ===');
+    console.log('Menu ID:', menuId);
+
+    // Daftar endpoint yang akan dicoba
+    const endpoints = [
+      { url: `${apiBaseUrl}/menu/${menuId}`, method: 'DELETE', name: 'DELETE /menu/{id}' },
+      { url: `${apiBaseUrl}/menu/delete/${menuId}`, method: 'DELETE', name: 'DELETE /menu/delete/{id}' },
+      { url: `${apiBaseUrl}/menu/delete/${menuId}`, method: 'POST', name: 'POST /menu/delete/{id}' },
+      { url: `${apiBaseUrl}/menus/${menuId}`, method: 'DELETE', name: 'DELETE /menus/{id}' },
+      { url: `${apiBaseUrl}/menu/${menuId}`, method: 'POST', name: 'POST /menu/{id} with delete action', payload: { _action: 'delete' } },
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying: ${endpoint.name} - ${endpoint.method} ${endpoint.url}`);
+        
+        const requestOptions = {
+          method: endpoint.method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        };
+
+        // Add body for POST methods with payload
+        if (endpoint.payload) {
+          requestOptions.headers['Content-Type'] = 'application/json';
+          requestOptions.body = JSON.stringify(endpoint.payload);
+        }
+
+        const response = await fetch(endpoint.url, requestOptions);
+
+        console.log(`${endpoint.name} response status:`, response.status);
+
+        // Success status codes for delete
+        if (response.status >= 200 && response.status <= 299) {
+          console.log(`✅ SUCCESS with ${endpoint.name}`);
+          
+          try {
+            const responseData = await response.json();
+            console.log('Response data:', responseData);
+          } catch (parseError) {
+            console.log('Response is not JSON, but status indicates success');
+          }
+          
+          return { success: true, method: endpoint.name };
+        }
+
+        // Log error details
+        let errorDetails = '';
+        try {
+          const errorData = await response.json();
+          errorDetails = JSON.stringify(errorData);
+        } catch {
+          errorDetails = await response.text();
+        }
+        
+        console.log(`❌ ${endpoint.name} failed: ${response.status} - ${errorDetails}`);
+
+      } catch (error) {
+        console.log(`❌ ${endpoint.name} error:`, error.message);
+      }
+    }
+
+    console.log('❌ All delete endpoints failed');
+    return { success: false, method: null };
+  };
+
   const handleAddOrUpdateMenu = async () => {
     console.log('=== SUBMIT MENU DEBUG ===');
     console.log('newMenu state:', newMenu);
+    console.log('editingMenu:', editingMenu);
     console.log('imageUrlPreview:', newMenu.imageUrlPreview);
     console.log('processedImageUrl:', processImageUrl(newMenu.imageUrlPreview));
 
@@ -879,53 +1005,175 @@ const AdminPage = () => {
       description: (newMenu.description || "").trim(),
       price: Number(newMenu.price),
       category: newMenu.category,
-      is_available:
-        newMenu.is_available === 0 || newMenu.is_available === "0" ? 0 : 1,
+      is_available: newMenu.is_available === 0 || newMenu.is_available === "0" ? 0 : 1,
       image_link: processedImageUrl && !processedImageUrl.includes('placehold.co') ? processedImageUrl : null,
     };
 
     console.log('Payload being sent:', payload);
 
     const isEdit = Boolean(editingMenu?.id_menu);
-    const url = isEdit
-      ? `${apiBaseUrl}/menu/${editingMenu.id_menu}?t=${Date.now()}`
-      : `${apiBaseUrl}/menu?t=${Date.now()}`;
 
-    try {
-      const resp = await fetch(url, {
-        method: isEdit ? "PUT" : "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-        },
-        cache: "no-store",
-        body: JSON.stringify(payload),
-      });
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        throw new Error(j.message || `HTTP ${resp.status}`);
+    if (isEdit) {
+      console.log('=== EDIT MODE ===');
+      console.log('Editing menu ID:', editingMenu.id_menu);
+      
+      // Cek apakah menu masih ada di daftar
+      const menuExists = menuItems.find(m => m.id_menu === editingMenu.id_menu);
+      if (!menuExists) {
+        alert("Menu tidak ditemukan dalam daftar. Silakan refresh halaman dan coba lagi.");
+        await fetchMenuItems();
+        return;
       }
-      alert(`Menu berhasil ${isEdit ? "diupdate" : "ditambahkan"}!`);
-      setNewMenu({
-        name: "",
-        description: "",
-        price: "",
-        category: "makanan-nasi",
-        imageFile: null,
-        imageUrlPreview: "",
-        is_available: 1,
-      });
-      setEditingMenu(null);
-      fetchMenuItems();
-      setActiveMenuSubTab("menu-list");
-    } catch (e) {
-      alert(`Gagal ${editingMenu ? "mengupdate" : "menambahkan"} menu: ${e.message}`);
+
+      // Coba update dengan berbagai endpoint
+      const updateResult = await tryUpdateMenuWithMultipleEndpoints(editingMenu.id_menu, payload);
+      
+      if (updateResult.success) {
+        alert(`Menu berhasil diupdate! (menggunakan ${updateResult.method})`);
+        
+        // Reset form
+        setNewMenu({
+          name: "",
+          description: "",
+          price: "",
+          category: "makanan-nasi",
+          imageFile: null,
+          imageUrlPreview: "",
+          is_available: 1,
+        });
+        setEditingMenu(null);
+        
+        // Refresh menu list
+        await fetchMenuItems();
+        setActiveMenuSubTab("menu-list");
+        
+      } else {
+        // Refresh daftar menu untuk cek apakah update sebenarnya berhasil
+        console.log('Update failed, checking if data actually changed...');
+        await fetchMenuItems();
+        
+        // Check if the menu was actually updated
+        setTimeout(() => {
+          const updatedMenu = menuItems.find(m => 
+            m.id_menu === editingMenu.id_menu && 
+            m.name === payload.name &&
+            m.price === payload.price
+          );
+          
+          if (updatedMenu) {
+            alert("Menu berhasil diupdate! (terdeteksi setelah refresh)");
+            setNewMenu({
+              name: "",
+              description: "",
+              price: "",
+              category: "makanan-nasi",
+              imageFile: null,
+              imageUrlPreview: "",
+              is_available: 1,
+            });
+            setEditingMenu(null);
+            setActiveMenuSubTab("menu-list");
+          } else {
+            alert("Gagal mengupdate menu. Semua endpoint API tidak merespons dengan benar. Silakan periksa koneksi atau hubungi admin sistem.");
+          }
+        }, 1000);
+      }
+
+    } else {
+      console.log('=== ADD MODE ===');
+      
+      // Add new menu
+      try {
+        const response = await fetch(`${apiBaseUrl}/menu`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        console.log('Add response status:', response.status);
+
+        if (response.status >= 200 && response.status < 300) {
+          alert("Menu berhasil ditambahkan!");
+          setNewMenu({
+            name: "",
+            description: "",
+            price: "",
+            category: "makanan-nasi",
+            imageFile: null,
+            imageUrlPreview: "",
+            is_available: 1,
+          });
+          await fetchMenuItems();
+          setActiveMenuSubTab("menu-list");
+        } else {
+          const errorText = await response.text();
+          alert(`Gagal menambahkan menu: ${response.status} - ${errorText}`);
+        }
+        
+      } catch (error) {
+        console.error('Add request failed:', error);
+        alert(`Error menambahkan menu: ${error.message}`);
+      }
+    }
+  };
+
+  const handleDeleteMenu = async (id_menu) => {
+    if (!id_menu) {
+      alert("ID menu tidak valid");
+      return;
+    }
+    
+    if (!window.confirm("Hapus menu ini?")) return;
+    
+    console.log('=== DELETE MENU ===');
+    console.log('Deleting menu with ID:', id_menu);
+    
+    // Cek apakah menu ada di daftar
+    const menuExists = menuItems.find(m => m.id_menu === id_menu);
+    if (!menuExists) {
+      alert("Menu tidak ditemukan dalam daftar. Silakan refresh halaman dan coba lagi.");
+      await fetchMenuItems();
+      return;
+    }
+
+    // Coba delete dengan berbagai endpoint
+    const deleteResult = await tryDeleteMenuWithMultipleEndpoints(id_menu);
+    
+    if (deleteResult.success) {
+      alert(`Menu berhasil dihapus! (menggunakan ${deleteResult.method})`);
+      await fetchMenuItems();
+      
+    } else {
+      // Refresh daftar menu untuk cek apakah delete sebenarnya berhasil
+      console.log('Delete failed, checking if menu actually removed...');
+      await fetchMenuItems();
+      
+      // Check if the menu was actually deleted
+      setTimeout(() => {
+        const menuStillExists = menuItems.find(m => m.id_menu === id_menu);
+        
+        if (!menuStillExists) {
+          alert("Menu berhasil dihapus! (terdeteksi setelah refresh)");
+        } else {
+          alert("Gagal menghapus menu. Semua endpoint API tidak merespons dengan benar. Silakan periksa koneksi atau hubungi admin sistem.");
+        }
+      }, 1000);
     }
   };
 
   const handleEditMenuClick = (item) => {
+    console.log('=== EDIT MENU CLICK ===');
+    console.log('Item to edit:', item);
+    
+    if (!item || !item.id_menu) {
+      alert("Data menu tidak valid");
+      return;
+    }
+
     setEditingMenu(item);
     setNewMenu({
       name: item?.name || "",
@@ -959,30 +1207,6 @@ const AdminPage = () => {
     setActiveMenuSubTab("menu-list");
   };
 
-  const handleDeleteMenu = async (id_menu) => {
-    if (!id_menu) return;
-    if (!window.confirm("Hapus menu ini?")) return;
-    try {
-      const resp = await fetch(`${apiBaseUrl}/menu/${id_menu}?t=${Date.now()}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-        },
-        cache: "no-store",
-      });
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        throw new Error(j.message || `HTTP ${resp.status}`);
-      }
-      alert("Menu berhasil dihapus!");
-      fetchMenuItems();
-    } catch (e) {
-      alert(`Gagal menghapus menu: ${e.message}`);
-    }
-  };
-
   const handleToggleMenuAvailability = async (item) => {
     if (!item?.id_menu) {
       alert("Data menu tidak valid");
@@ -997,77 +1221,68 @@ const AdminPage = () => {
     const newStatus = isAvail ? 0 : 1;
     const action = isAvail ? "nonaktifkan" : "aktifkan";
     
+    console.log(`=== TOGGLE MENU AVAILABILITY ===`);
     console.log(`Toggling menu ${item.id_menu} availability from ${isAvail} to ${newStatus}`);
     
-    try {
-      const url = `${apiBaseUrl}/menu/${item.id_menu}/availability?t=${Date.now()}`;
-      console.log('Making PATCH request to:', url);
-      
-      const resp = await fetch(url, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-        },
-        cache: "no-store",
-        body: JSON.stringify({ is_available: newStatus }),
-      });
-      
-      console.log('Toggle response status:', resp.status);
-      console.log('Toggle response ok:', resp.ok);
-      
-      let responseData = null;
-      let errorMessage = null;
-      
+    // Coba beberapa endpoint untuk toggle availability
+    const endpoints = [
+      { url: `${apiBaseUrl}/menu/${item.id_menu}/availability`, method: 'PATCH' },
+      { url: `${apiBaseUrl}/menu/${item.id_menu}/toggle`, method: 'PATCH' },
+      { url: `${apiBaseUrl}/menu/${item.id_menu}/status`, method: 'PATCH' },
+      { url: `${apiBaseUrl}/menu/${item.id_menu}`, method: 'PATCH' },
+    ];
+
+    let success = false;
+    let successMethod = '';
+
+    for (const endpoint of endpoints) {
       try {
-        const responseText = await resp.text();
-        console.log('Toggle response text:', responseText);
+        console.log(`Trying toggle: ${endpoint.method} ${endpoint.url}`);
         
-        if (responseText) {
-          responseData = JSON.parse(responseText);
+        const response = await fetch(endpoint.url, {
+          method: endpoint.method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({ is_available: newStatus }),
+        });
+
+        console.log(`Toggle response status:`, response.status);
+
+        if (response.status >= 200 && response.status <= 299) {
+          console.log(`✅ Toggle SUCCESS with ${endpoint.method} ${endpoint.url}`);
+          success = true;
+          successMethod = `${endpoint.method} ${endpoint.url}`;
+          break;
         }
-      } catch (parseError) {
-        console.log('Failed to parse toggle response as JSON:', parseError);
+
+        console.log(`❌ Toggle failed: ${response.status}`);
+
+      } catch (error) {
+        console.log(`❌ Toggle error:`, error.message);
       }
+    }
+
+    if (success) {
+      alert(`Menu berhasil di${action}! (menggunakan ${successMethod})`);
+      await fetchMenuItems();
       
-      // Check if toggle was actually successful
-      if (resp.status === 200 || resp.status === 201 || resp.status === 204) {
-        console.log('Toggle successful based on status code');
+    } else {
+      // Refresh daftar menu untuk cek apakah toggle sebenarnya berhasil
+      console.log('Toggle failed, checking if status actually changed...');
+      await fetchMenuItems();
+      
+      setTimeout(() => {
+        const updatedMenu = menuItems.find(m => m.id_menu === item.id_menu);
         
-        const message = responseData?.message || `Menu berhasil di${action}`;
-        alert(message);
-        await fetchMenuItems(); // Wait for refresh
-        return;
-      }
-      
-      // Handle error cases
-      if (responseData && responseData.message) {
-        errorMessage = responseData.message;
-      } else if (resp.status === 404) {
-        errorMessage = "Menu tidak ditemukan di server";
-      } else if (resp.status === 401 || resp.status === 403) {
-        errorMessage = "Tidak memiliki izin untuk mengubah ketersediaan menu";
-        handleLogout();
-        return;
-      } else {
-        errorMessage = `HTTP ${resp.status}`;
-      }
-      
-      throw new Error(errorMessage);
-      
-    } catch (e) {
-      console.error('Toggle request failed:', e);
-      
-      // If it's a network error, try to refresh menu list anyway in case it succeeded
-      if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
-        console.log('Network error detected during toggle, refreshing menu list to check if operation succeeded...');
-        await fetchMenuItems();
-        alert(`Operasi toggle mungkin berhasil, silakan cek daftar menu. Error: ${e.message}`);
-      } else {
-        alert(`Gagal mengubah ketersediaan: ${e.message}`);
-      }
+        if (updatedMenu && updatedMenu.is_available === newStatus) {
+          alert(`Menu berhasil di${action}! (terdeteksi setelah refresh)`);
+        } else {
+          alert(`Gagal mengubah ketersediaan menu. Semua endpoint API tidak merespons dengan benar.`);
+        }
+      }, 1000);
     }
   };
 
