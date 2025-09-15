@@ -631,7 +631,7 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
       {/* Konten utama */}
       <div className="main-menu-content">
         <h1 className="menu-page-title">
-          Menu Restoran (Meja {tableNumber ? `(${decodeURIComponent (tableNumber)})` : 'Online'})
+          Menu Restoran (Meja {tableNumber ? `(${decodeURIComponent tableNumber})` : 'Online'})
         </h1>
         <p className="menu-page-description">
           Silakan pilih makanan dan minuman Anda. Pembayaran dapat dilakukan di kasir atau online.
