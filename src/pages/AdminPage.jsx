@@ -984,35 +984,90 @@ const AdminPage = () => {
   };
 
   const handleToggleMenuAvailability = async (item) => {
-    if (!item?.id_menu) return;
+    if (!item?.id_menu) {
+      alert("Data menu tidak valid");
+      return;
+    }
+    
     const isAvail =
       item.is_available === 1 ||
       item.is_available === true ||
       item.is_available === "1";
+      
+    const newStatus = isAvail ? 0 : 1;
+    const action = isAvail ? "nonaktifkan" : "aktifkan";
+    
+    console.log(`Toggling menu ${item.id_menu} availability from ${isAvail} to ${newStatus}`);
+    
     try {
-      const resp = await fetch(
-        `${apiBaseUrl}/menu/${item.id_menu}/availability?t=${Date.now()}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "Cache-Control": "no-cache",
-          },
-          cache: "no-store",
-          body: JSON.stringify({ is_available: isAvail ? 0 : 1 }),
+      const url = `${apiBaseUrl}/menu/${item.id_menu}/availability?t=${Date.now()}`;
+      console.log('Making PATCH request to:', url);
+      
+      const resp = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Cache-Control": "no-cache",
+        },
+        cache: "no-store",
+        body: JSON.stringify({ is_available: newStatus }),
+      });
+      
+      console.log('Toggle response status:', resp.status);
+      console.log('Toggle response ok:', resp.ok);
+      
+      let responseData = null;
+      let errorMessage = null;
+      
+      try {
+        const responseText = await resp.text();
+        console.log('Toggle response text:', responseText);
+        
+        if (responseText) {
+          responseData = JSON.parse(responseText);
         }
-      );
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        throw new Error(j.message || `HTTP ${resp.status}`);
+      } catch (parseError) {
+        console.log('Failed to parse toggle response as JSON:', parseError);
       }
-      const j = await resp.json();
-      alert(j.message || "Ketersediaan menu diubah");
-      fetchMenuItems();
+      
+      // Check if toggle was actually successful
+      if (resp.status === 200 || resp.status === 201 || resp.status === 204) {
+        console.log('Toggle successful based on status code');
+        
+        const message = responseData?.message || `Menu berhasil di${action}`;
+        alert(message);
+        await fetchMenuItems(); // Wait for refresh
+        return;
+      }
+      
+      // Handle error cases
+      if (responseData && responseData.message) {
+        errorMessage = responseData.message;
+      } else if (resp.status === 404) {
+        errorMessage = "Menu tidak ditemukan di server";
+      } else if (resp.status === 401 || resp.status === 403) {
+        errorMessage = "Tidak memiliki izin untuk mengubah ketersediaan menu";
+        handleLogout();
+        return;
+      } else {
+        errorMessage = `HTTP ${resp.status}`;
+      }
+      
+      throw new Error(errorMessage);
+      
     } catch (e) {
-      alert(`Gagal mengubah ketersediaan: ${e.message}`);
+      console.error('Toggle request failed:', e);
+      
+      // If it's a network error, try to refresh menu list anyway in case it succeeded
+      if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+        console.log('Network error detected during toggle, refreshing menu list to check if operation succeeded...');
+        await fetchMenuItems();
+        alert(`Operasi toggle mungkin berhasil, silakan cek daftar menu. Error: ${e.message}`);
+      } else {
+        alert(`Gagal mengubah ketersediaan: ${e.message}`);
+      }
     }
   };
 
