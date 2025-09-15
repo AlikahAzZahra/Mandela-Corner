@@ -46,13 +46,37 @@ const processImageUrl = (imageUrl) => {
   console.log('Processing image URL:', imageUrl);
   
   if (!imageUrl || imageUrl.trim() === '') {
+    console.log('Empty image URL, using placeholder');
     return "https://placehold.co/150x150/CCCCCC/000000?text=No+Image";
   }
   
   const url = imageUrl.trim();
   
-  // Jika URL Google Drive, konversi ke direct view
+  // Handle Imgur URLs
+  if (url.includes('imgur.com')) {
+    console.log('Detected Imgur URL');
+    
+    // Convert imgur.com/ID to i.imgur.com/ID.jpg
+    const imgurMatch = url.match(/imgur\.com\/([a-zA-Z0-9]+)(?:\.[a-zA-Z]+)?$/);
+    if (imgurMatch && imgurMatch[1]) {
+      const imageId = imgurMatch[1];
+      // Try common image extensions
+      const directUrl = `https://i.imgur.com/${imageId}.jpg`;
+      console.log('Converted Imgur URL:', directUrl);
+      return directUrl;
+    }
+    
+    // If already i.imgur.com format, use as is
+    if (url.includes('i.imgur.com')) {
+      console.log('Already direct Imgur URL');
+      return url;
+    }
+  }
+  
+  // Handle Google Drive URLs
   if (url.includes('drive.google.com')) {
+    console.log('Detected Google Drive URL');
+    
     // Format: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
     const match = url.match(/\/file\/d\/([^/]+)/);
     if (match && match[1]) {
@@ -75,6 +99,20 @@ const processImageUrl = (imageUrl) => {
     }
   }
   
+  // Handle other common image hosting services
+  if (url.includes('dropbox.com') && url.includes('dl=0')) {
+    const directUrl = url.replace('dl=0', 'dl=1');
+    console.log('Converted Dropbox URL:', directUrl);
+    return directUrl;
+  }
+  
+  // If URL looks like a direct image URL (has image extension), use as is
+  if (/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(url)) {
+    console.log('Direct image URL detected');
+    return url;
+  }
+  
+  // For other URLs, try to use as is
   console.log('Using original URL:', url);
   return url;
 };
@@ -84,18 +122,37 @@ const MenuItemImage = ({ imageUrl, altText, className, style }) => {
   const [imgSrc, setImgSrc] = useState(processImageUrl(imageUrl));
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    setImgSrc(processImageUrl(imageUrl));
+    const processedUrl = processImageUrl(imageUrl);
+    console.log('MenuItemImage useEffect - Original:', imageUrl, 'Processed:', processedUrl);
+    setImgSrc(processedUrl);
     setHasError(false);
     setIsLoading(true);
+    setRetryCount(0);
   }, [imageUrl]);
 
   const handleError = () => {
-    console.log('Image load error for URL:', imgSrc);
+    console.log('Image load error for URL:', imgSrc, 'Retry count:', retryCount);
+    
+    if (retryCount < 2 && imgSrc.includes('imgur.com')) {
+      // Try different extensions for Imgur
+      const extensions = ['.png', '.gif', '.jpeg'];
+      const currentExt = extensions[retryCount];
+      
+      if (imgSrc.includes('.jpg')) {
+        const newSrc = imgSrc.replace('.jpg', currentExt);
+        console.log('Retrying with different extension:', newSrc);
+        setImgSrc(newSrc);
+        setRetryCount(prev => prev + 1);
+        return;
+      }
+    }
+    
     if (!hasError) {
       setHasError(true);
-      setImgSrc("https://placehold.co/150x150/CCCCCC/000000?text=Error+Loading");
+      setImgSrc("https://placehold.co/150x150/FFCCCC/CC0000?text=Error+Loading");
     }
     setIsLoading(false);
   };
@@ -103,6 +160,18 @@ const MenuItemImage = ({ imageUrl, altText, className, style }) => {
   const handleLoad = () => {
     console.log('Image loaded successfully:', imgSrc);
     setIsLoading(false);
+    setHasError(false);
+  };
+
+  // Tambahkan test untuk CORS dan availability
+  const testImageUrl = (url) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+    });
   };
 
   return (
@@ -115,13 +184,14 @@ const MenuItemImage = ({ imageUrl, altText, className, style }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: '#f0f0f0',
+            backgroundColor: '#f8f9fa',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '12px',
             color: '#666',
-            borderRadius: '4px'
+            borderRadius: '4px',
+            border: '1px solid #e9ecef'
           }}
         >
           Loading...
@@ -138,9 +208,28 @@ const MenuItemImage = ({ imageUrl, altText, className, style }) => {
           transition: 'opacity 0.3s ease',
           width: '100%',
           height: '100%',
-          objectFit: 'cover'
+          objectFit: 'cover',
+          borderRadius: '4px'
         }}
+        crossOrigin="anonymous"
       />
+      
+      {/* Debug info - bisa dihapus di production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          color: 'white',
+          fontSize: '10px',
+          padding: '2px 4px',
+          borderRadius: '0 0 4px 4px'
+        }}>
+          {hasError ? 'ERROR' : 'OK'} | Retry: {retryCount}
+        </div>
+      )}
     </div>
   );
 };
@@ -746,6 +835,20 @@ const AdminPage = () => {
     r.readAsDataURL(file);
   };
 
+  const validateImageUrl = async (url) => {
+    if (!url) return false;
+    
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = processImageUrl(url);
+      
+      // Timeout after 5 seconds
+      setTimeout(() => resolve(false), 5000);
+    });
+  };
+
   const handleAddOrUpdateMenu = async () => {
     console.log('=== SUBMIT MENU DEBUG ===');
     console.log('newMenu state:', newMenu);
@@ -758,6 +861,19 @@ const AdminPage = () => {
     }
 
     const processedImageUrl = processImageUrl(newMenu.imageUrlPreview);
+    
+    // Validate image URL if provided
+    if (newMenu.imageUrlPreview && !processedImageUrl.includes('placehold.co')) {
+      console.log('Validating image URL...');
+      const isValid = await validateImageUrl(newMenu.imageUrlPreview);
+      if (!isValid) {
+        const confirmProceed = window.confirm(
+          'URL gambar mungkin tidak valid atau tidak dapat diakses. Lanjutkan tanpa gambar?'
+        );
+        if (!confirmProceed) return;
+      }
+    }
+
     const payload = {
       name: newMenu.name.trim(),
       description: (newMenu.description || "").trim(),
@@ -2171,7 +2287,7 @@ const AdminPage = () => {
                   <input
                     type="url"
                     id="imageUrl"
-                    placeholder="Paste Google Drive link atau direct image URL di sini"
+                    placeholder="Paste Imgur, Google Drive, atau direct image URL di sini"
                     value={newMenu.imageUrlPreview || ''}
                     onChange={(e) => {
                       const url = e.target.value.trim();
@@ -2198,56 +2314,99 @@ const AdminPage = () => {
                     color: '#666',
                     fontStyle: 'italic' 
                   }}>
-                    Gunakan URL langsung ke gambar atau link Google Drive. Preview akan muncul otomatis.
+                    Contoh: https://imgur.com/PCjv5M atau https://i.imgur.com/PCjv5M.jpg
+                    <br />
+                    Juga mendukung Google Drive dan URL gambar langsung lainnya.
                   </small>
                   
                   {/* Test button untuk debug */}
                   {newMenu.imageUrlPreview && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const processedUrl = processImageUrl(newMenu.imageUrlPreview);
-                        console.log('Original URL:', newMenu.imageUrlPreview);
-                        console.log('Processed URL:', processedUrl);
-                        window.open(processedUrl, '_blank');
-                      }}
-                      style={{
-                        marginTop: '8px',
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        backgroundColor: '#f8f9fa',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Test URL di tab baru
-                    </button>
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const processedUrl = processImageUrl(newMenu.imageUrlPreview);
+                          console.log('Original URL:', newMenu.imageUrlPreview);
+                          console.log('Processed URL:', processedUrl);
+                          window.open(processedUrl, '_blank');
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          backgroundColor: '#f8f9fa',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Test URL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const isValid = await validateImageUrl(newMenu.imageUrlPreview);
+                          alert(isValid ? 'URL gambar valid!' : 'URL gambar tidak dapat diakses');
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          backgroundColor: '#e9ecef',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Validate URL
+                      </button>
+                    </div>
                   )}
                 </div>
 
                 {/* PREVIEW GAMBAR YANG DIPERBAIKI */}
                 {newMenu.imageUrlPreview && (
                   <div className="menu-image-preview-container" style={{ marginBottom: '15px' }}>
+                    <div style={{ marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
+                      Preview Gambar:
+                    </div>
                     <MenuItemImage
                       imageUrl={newMenu.imageUrlPreview}
                       altText="Preview"
                       className="menu-image-preview"
                       style={{ 
-                        maxWidth: '200px', 
-                        maxHeight: '150px', 
-                        border: '1px solid #ddd', 
-                        borderRadius: '4px' 
+                        maxWidth: '250px', 
+                        maxHeight: '200px', 
+                        border: '2px solid #ddd', 
+                        borderRadius: '8px',
+                        backgroundColor: '#f8f9fa' 
                       }}
                     />
-                    <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
-                      Processed URL: {processImageUrl(newMenu.imageUrlPreview)}
+                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#666', fontFamily: 'monospace' }}>
+                      <strong>Original:</strong> {newMenu.imageUrlPreview.substring(0, 60)}{newMenu.imageUrlPreview.length > 60 ? '...' : ''}
+                      <br />
+                      <strong>Processed:</strong> {processImageUrl(newMenu.imageUrlPreview).substring(0, 60)}{processImageUrl(newMenu.imageUrlPreview).length > 60 ? '...' : ''}
                     </div>
                   </div>
                 )}
 
+                <div className="menu-form-availability">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                    <input
+                      type="checkbox"
+                      checked={newMenu.is_available === 1}
+                      onChange={(e) =>
+                        setNewMenu((p) => ({ ...p, is_available: e.target.checked ? 1 : 0 }))
+                      }
+                    />
+                    Menu Tersedia
+                  </label>
+                </div>
+
                 <div className="menu-form-actions">
-                  <button onClick={handleAddOrUpdateMenu} className="menu-add-button">
+                  <button 
+                    onClick={handleAddOrUpdateMenu} 
+                    className="menu-add-button"
+                    style={{ marginRight: '10px' }}
+                  >
                     {editingMenu ? "Update Menu" : "Tambah Menu"}
                   </button>
                   <button onClick={handleCancelEdit} className="menu-action-button btn-secondary">
@@ -2259,8 +2418,507 @@ const AdminPage = () => {
           </div>
         )}
 
-        {/* Bagian lainnya tetap sama seperti sebelumnya - Tables, Reports, Modals */}
+        {/* Manajemen Meja */}
+        {activeTab === "manajemen-meja" && userRole === "admin" && (
+          <div className="admin-section-box">
+            <h2 className="admin-section-title">Manajemen Meja</h2>
+
+            <div className="table-form">
+              <h3>Tambah Meja Baru:</h3>
+              <input
+                type="text"
+                placeholder="Nomor Meja"
+                value={newTable.table_number}
+                onChange={(e) =>
+                  setNewTable((p) => ({ ...p, table_number: e.target.value }))
+                }
+                className="table-form-input"
+              />
+              <input
+                type="number"
+                placeholder="Kapasitas (opsional)"
+                value={newTable.capacity}
+                onChange={(e) =>
+                  setNewTable((p) => ({ ...p, capacity: e.target.value }))
+                }
+                className="table-form-input"
+              />
+              <button onClick={handleAddTable} className="table-add-button">
+                Tambah Meja
+              </button>
+            </div>
+
+            <h3>Daftar Meja & QR Code:</h3>
+            {tables.length === 0 ? (
+              <p className="no-data-message">Belum ada meja.</p>
+            ) : (
+              <div className="tables-grid">
+                {tables.map((table) => (
+                  <div key={table.table_id} className="table-card">
+                    <h4>Meja {table.table_number}</h4>
+                    {table.capacity && <p>Kapasitas: {table.capacity} orang</p>}
+                    
+                    <div className="qr-section">
+                      <QRCodeSVG
+                        id={`qr-table-${String(table.table_number).replace(/\s/g, "-")}`}
+                        value={generateQrUrl(table.table_number)}
+                        size={120}
+                        level="M"
+                        includeMargin={true}
+                      />
+                      <button
+                        onClick={() => handleDownloadQR(table.table_number)}
+                        className="download-qr-button"
+                      >
+                        Download QR
+                      </button>
+                    </div>
+                    
+                    <div className="table-url">
+                      <small>{generateQrUrl(table.table_number)}</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Laporan */}
+        {activeTab === "laporan" && (
+          <div className="admin-section-box">
+            <h2 className="admin-section-title">Laporan Penjualan</h2>
+
+            <div className="report-controls">
+              <div className="date-range-inputs">
+                <label>
+                  Tanggal Mulai:
+                  <input
+                    type="date"
+                    value={reportDateRange.startDate}
+                    onChange={(e) =>
+                      setReportDateRange((p) => ({ ...p, startDate: e.target.value }))
+                    }
+                    className="date-input"
+                  />
+                </label>
+                <label>
+                  Tanggal Akhir:
+                  <input
+                    type="date"
+                    value={reportDateRange.endDate}
+                    onChange={(e) =>
+                      setReportDateRange((p) => ({ ...p, endDate: e.target.value }))
+                    }
+                    className="date-input"
+                  />
+                </label>
+              </div>
+              <button
+                onClick={exportReportToCSV}
+                className="export-button"
+                disabled={isLoadingReport}
+              >
+                Export CSV
+              </button>
+            </div>
+
+            {isLoadingReport ? (
+              <p>Memuat laporan...</p>
+            ) : (
+              <div className="report-content">
+                <div className="report-summary">
+                  <h3>Ringkasan Periode {reportDateRange.startDate} - {reportDateRange.endDate}</h3>
+                  <div className="summary-cards">
+                    <div className="summary-card">
+                      <h4>Total Penjualan</h4>
+                      <p className="summary-value">Rp {formatPrice(reportData.totalSales || 0)}</p>
+                    </div>
+                    <div className="summary-card">
+                      <h4>Total Pesanan</h4>
+                      <p className="summary-value">{reportData.totalOrders || 0}</p>
+                    </div>
+                    <div className="summary-card">
+                      <h4>Pesanan Selesai</h4>
+                      <p className="summary-value">{reportData.completedOrders || 0}</p>
+                    </div>
+                    <div className="summary-card">
+                      <h4>Pesanan Dibatalkan</h4>
+                      <p className="summary-value">{reportData.cancelledOrders || 0}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="report-details">
+                  <h4>Menu Terlaris</h4>
+                  {(reportData.topSellingItems || []).length === 0 ? (
+                    <p>Tidak ada data menu.</p>
+                  ) : (
+                    <div className="top-selling-table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Nama Menu</th>
+                            <th>Jumlah Terjual</th>
+                            <th>Total Pendapatan</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(reportData.topSellingItems || []).map((item, idx) => (
+                            <tr key={idx}>
+                              <td>{item.menu_name || "Unknown"}</td>
+                              <td>{item.total_quantity || 0}</td>
+                              <td>Rp {formatPrice(item.total_revenue || 0)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Add Order Modal */}
+      {isAddOrderModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsAddOrderModalOpen(false)}>
+          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Tambah Pesanan Baru</h3>
+              <button
+                className="modal-close-button"
+                onClick={() => setIsAddOrderModalOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="customer-name-input">
+                <label>Nama Pelanggan (opsional):</label>
+                <input
+                  type="text"
+                  placeholder="Masukkan nama pelanggan"
+                  value={newOrderCustomerName}
+                  onChange={(e) => setNewOrderCustomerName(e.target.value)}
+                  className="customer-name-field"
+                />
+              </div>
+
+              <div className="order-modal-content">
+                <div className="menu-selection-section">
+                  <h4>Pilih Menu</h4>
+                  <div className="menu-items-grid">
+                    {Object.entries(groupMenuByCategory(menuItems)).map(([category, items]) => (
+                      <div key={category} className="menu-category-section">
+                        <h5 className="menu-category-title">
+                          {getCategoryDisplayName(category)}
+                        </h5>
+                        <div className="menu-items-list">
+                          {items.map((item) => (
+                            <div key={item.id_menu} className="menu-item-card">
+                              <MenuItemImage
+                                imageUrl={item.image_url}
+                                altText={item.name}
+                                className="menu-item-image"
+                                style={{ width: '60px', height: '60px', borderRadius: '8px' }}
+                              />
+                              <div className="menu-item-info">
+                                <h6>{item.name}</h6>
+                                <p className="menu-item-price">Rp {formatPrice(item.price)}</p>
+                              </div>
+                              
+                              <div className="menu-item-options">
+                                <select
+                                  value={newOrderItemSelections[item.id_menu]?.spiciness || ""}
+                                  onChange={(e) =>
+                                    handleNewOrderOptionChange(item.id_menu, "spiciness", e.target.value)
+                                  }
+                                  className="option-select"
+                                >
+                                  <option value="">Tingkat Pedas</option>
+                                  <option value="Tidak Pedas">Tidak Pedas</option>
+                                  <option value="Pedas Level 1">Pedas Level 1</option>
+                                  <option value="Pedas Level 2">Pedas Level 2</option>
+                                  <option value="Pedas Level 3">Pedas Level 3</option>
+                                </select>
+                                
+                                <select
+                                  value={newOrderItemSelections[item.id_menu]?.temperature || ""}
+                                  onChange={(e) =>
+                                    handleNewOrderOptionChange(item.id_menu, "temperature", e.target.value)
+                                  }
+                                  className="option-select"
+                                >
+                                  <option value="">Suhu</option>
+                                  <option value="Dingin">Dingin</option>
+                                  <option value="Normal">Normal</option>
+                                  <option value="Hangat">Hangat</option>
+                                  <option value="Panas">Panas</option>
+                                </select>
+                              </div>
+                              
+                              <button
+                                onClick={() => addNewItemToOrderCart(item)}
+                                className="add-to-cart-button"
+                              >
+                                Tambah ke Keranjang
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="cart-section">
+                  <h4>Keranjang Pesanan</h4>
+                  {newOrderCart.length === 0 ? (
+                    <p className="empty-cart-message">Keranjang kosong</p>
+                  ) : (
+                    <>
+                      <div className="cart-items">
+                        {newOrderCart.map((cartItem, idx) => (
+                          <div key={idx} className="cart-item">
+                            <div className="cart-item-info">
+                              <span className="cart-item-name">{cartItem.name}</span>
+                              <div className="cart-item-options">
+                                {cartItem.options?.spiciness && (
+                                  <span className="cart-option">Pedas: {cartItem.options.spiciness}</span>
+                                )}
+                                {cartItem.options?.temperature && (
+                                  <span className="cart-option">Suhu: {cartItem.options.temperature}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="cart-item-controls">
+                              <button
+                                onClick={() => removeNewItemFromOrderCart(cartItem)}
+                                className="quantity-button"
+                              >
+                                -
+                              </button>
+                              <span className="cart-item-quantity">{cartItem.quantity}</span>
+                              <button
+                                onClick={() => addNewItemToOrderCart({ 
+                                  id_menu: cartItem.id_menu, 
+                                  name: cartItem.name, 
+                                  price: cartItem.price 
+                                })}
+                                className="quantity-button"
+                              >
+                                +
+                              </button>
+                            </div>
+                            <div className="cart-item-price">
+                              Rp {formatPrice(cartItem.quantity * cartItem.price)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="cart-summary">
+                        <div className="cart-total-items">
+                          Total Item: {getNewOrderTotalItems()}
+                        </div>
+                        <div className="cart-total-price">
+                          Total Harga: Rp {formatPrice(getNewOrderTotalPrice())}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                onClick={() => setIsAddOrderModalOpen(false)}
+                className="modal-button secondary"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleAddOrderForCashier}
+                disabled={newOrderCart.length === 0 || isSubmittingOrder}
+                className="modal-button primary"
+              >
+                {isSubmittingOrder ? "Membuat Pesanan..." : "Buat Pesanan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Order Modal */}
+      {isEditOrderModalOpen && (
+        <div className="modal-overlay" onClick={closeEditOrder}>
+          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Edit Pesanan #{selectedOrderForDetail?.order_id}</h3>
+              <button className="modal-close-button" onClick={closeEditOrder}>
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="order-modal-content">
+                <div className="menu-selection-section">
+                  <h4>Pilih Menu</h4>
+                  <div className="menu-items-grid">
+                    {Object.entries(groupMenuByCategory(menuItems)).map(([category, items]) => (
+                      <div key={category} className="menu-category-section">
+                        <h5 className="menu-category-title">
+                          {getCategoryDisplayName(category)}
+                        </h5>
+                        <div className="menu-items-list">
+                          {items.map((item) => (
+                            <div key={item.id_menu} className="menu-item-card">
+                              <MenuItemImage
+                                imageUrl={item.image_url}
+                                altText={item.name}
+                                className="menu-item-image"
+                                style={{ width: '60px', height: '60px', borderRadius: '8px' }}
+                              />
+                              <div className="menu-item-info">
+                                <h6>{item.name}</h6>
+                                <p className="menu-item-price">Rp {formatPrice(item.price)}</p>
+                              </div>
+                              
+                              <div className="menu-item-options">
+                                <select
+                                  value={editOrderItemSelections[item.id_menu]?.spiciness || ""}
+                                  onChange={(e) =>
+                                    handleEditOrderOptionChange(item.id_menu, "spiciness", e.target.value)
+                                  }
+                                  className="option-select"
+                                >
+                                  <option value="">Tingkat Pedas</option>
+                                  <option value="Tidak Pedas">Tidak Pedas</option>
+                                  <option value="Pedas Level 1">Pedas Level 1</option>
+                                  <option value="Pedas Level 2">Pedas Level 2</option>
+                                  <option value="Pedas Level 3">Pedas Level 3</option>
+                                </select>
+                                
+                                <select
+                                  value={editOrderItemSelections[item.id_menu]?.temperature || ""}
+                                  onChange={(e) =>
+                                    handleEditOrderOptionChange(item.id_menu, "temperature", e.target.value)
+                                  }
+                                  className="option-select"
+                                >
+                                  <option value="">Suhu</option>
+                                  <option value="Dingin">Dingin</option>
+                                  <option value="Normal">Normal</option>
+                                  <option value="Hangat">Hangat</option>
+                                  <option value="Panas">Panas</option>
+                                </select>
+                              </div>
+                              
+                              <button
+                                onClick={() => addItemToEditOrderCart(item)}
+                                className="add-to-cart-button"
+                              >
+                                Tambah ke Keranjang
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="cart-section">
+                  <h4>Keranjang Edit</h4>
+                  {editOrderCart.length === 0 ? (
+                    <p className="empty-cart-message">Keranjang kosong</p>
+                  ) : (
+                    <>
+                      <div className="cart-items">
+                        {editOrderCart.map((cartItem, idx) => (
+                          <div key={idx} className="cart-item">
+                            <div className="cart-item-info">
+                              <span className="cart-item-name">{cartItem.name}</span>
+                              <div className="cart-item-options">
+                                {cartItem.options?.spiciness && (
+                                  <span className="cart-option">Pedas: {cartItem.options.spiciness}</span>
+                                )}
+                                {cartItem.options?.temperature && (
+                                  <span className="cart-option">Suhu: {cartItem.options.temperature}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="cart-item-controls">
+                              <button
+                                onClick={() => removeItemFromEditOrderCart(cartItem)}
+                                className="quantity-button"
+                              >
+                                -
+                              </button>
+                              <span className="cart-item-quantity">{cartItem.quantity}</span>
+                              <button
+                                onClick={() => addItemToEditOrderCart({ 
+                                  id_menu: cartItem.id_menu, 
+                                  name: cartItem.name, 
+                                  price: cartItem.price 
+                                })}
+                                className="quantity-button"
+                              >
+                                +
+                              </button>
+                            </div>
+                            <div className="cart-item-price">
+                              Rp {formatPrice(cartItem.quantity * cartItem.price)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="cart-summary">
+                        <div className="cart-total-items">
+                          Total Item: {getEditOrderTotalItems()}
+                        </div>
+                        <div className="cart-total-price">
+                          Total Harga: Rp {formatPrice(getEditOrderTotalPrice())}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  <div className="order-note-section">
+                    <label>Catatan Pesanan:</label>
+                    <textarea
+                      value={editOrderNote}
+                      onChange={(e) => setEditOrderNote(e.target.value)}
+                      placeholder="Tambahkan catatan pesanan..."
+                      className="order-note-textarea"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button onClick={closeEditOrder} className="modal-button secondary">
+                Batal
+              </button>
+              <button
+                onClick={handleSaveEditOrder}
+                disabled={editOrderCart.length === 0}
+                className="modal-button primary"
+              >
+                Simpan Perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payment Modal */}
       <PaymentModal
