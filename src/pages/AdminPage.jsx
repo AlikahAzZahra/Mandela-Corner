@@ -41,200 +41,7 @@ const formatOrderTime = (ts) => {
   return s;
 };
 
-// FUNGSI HELPER UNTUK GAMBAR - YANG DIPERBAIKI
-const processImageUrl = (imageUrl) => {
-  console.log('Processing image URL:', imageUrl);
-  
-  if (!imageUrl || imageUrl.trim() === '') {
-    console.log('Empty image URL, using placeholder');
-    return "https://placehold.co/150x150/CCCCCC/000000?text=No+Image";
-  }
-  
-  const url = imageUrl.trim();
-  
-  // Handle Imgur URLs
-  if (url.includes('imgur.com')) {
-    console.log('Detected Imgur URL');
-    
-    // Convert imgur.com/ID to i.imgur.com/ID.jpg
-    const imgurMatch = url.match(/imgur\.com\/([a-zA-Z0-9]+)(?:\.[a-zA-Z]+)?$/);
-    if (imgurMatch && imgurMatch[1]) {
-      const imageId = imgurMatch[1];
-      // Try common image extensions
-      const directUrl = `https://i.imgur.com/${imageId}.jpg`;
-      console.log('Converted Imgur URL:', directUrl);
-      return directUrl;
-    }
-    
-    // If already i.imgur.com format, use as is
-    if (url.includes('i.imgur.com')) {
-      console.log('Already direct Imgur URL');
-      return url;
-    }
-  }
-  
-  // Handle Google Drive URLs
-  if (url.includes('drive.google.com')) {
-    console.log('Detected Google Drive URL');
-    
-    // Format: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
-    const match = url.match(/\/file\/d\/([^/]+)/);
-    if (match && match[1]) {
-      const directUrl = `https://drive.google.com/uc?export=view&id=${match[1]}`;
-      console.log('Converted Google Drive URL:', directUrl);
-      return directUrl;
-    }
-    
-    // Format: https://drive.google.com/open?id=FILE_ID
-    try {
-      const urlParams = new URLSearchParams(url.split('?')[1]);
-      const fileId = urlParams.get('id');
-      if (fileId) {
-        const directUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-        console.log('Converted Google Drive URL from query:', directUrl);
-        return directUrl;
-      }
-    } catch (e) {
-      console.log('Error parsing Google Drive URL:', e);
-    }
-  }
-  
-  // Handle other common image hosting services
-  if (url.includes('dropbox.com') && url.includes('dl=0')) {
-    const directUrl = url.replace('dl=0', 'dl=1');
-    console.log('Converted Dropbox URL:', directUrl);
-    return directUrl;
-  }
-  
-  // If URL looks like a direct image URL (has image extension), use as is
-  if (/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(url)) {
-    console.log('Direct image URL detected');
-    return url;
-  }
-  
-  // For other URLs, try to use as is
-  console.log('Using original URL:', url);
-  return url;
-};
-
-// KOMPONEN IMAGE YANG ROBUST
-const MenuItemImage = ({ imageUrl, altText, className, style }) => {
-  const [imgSrc, setImgSrc] = useState(processImageUrl(imageUrl));
-  const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
-
-  useEffect(() => {
-    const processedUrl = processImageUrl(imageUrl);
-    console.log('MenuItemImage useEffect - Original:', imageUrl, 'Processed:', processedUrl);
-    setImgSrc(processedUrl);
-    setHasError(false);
-    setIsLoading(true);
-    setRetryCount(0);
-  }, [imageUrl]);
-
-  const handleError = () => {
-    console.log('Image load error for URL:', imgSrc, 'Retry count:', retryCount);
-    
-    if (retryCount < 2 && imgSrc.includes('imgur.com')) {
-      // Try different extensions for Imgur
-      const extensions = ['.png', '.gif', '.jpeg'];
-      const currentExt = extensions[retryCount];
-      
-      if (imgSrc.includes('.jpg')) {
-        const newSrc = imgSrc.replace('.jpg', currentExt);
-        console.log('Retrying with different extension:', newSrc);
-        setImgSrc(newSrc);
-        setRetryCount(prev => prev + 1);
-        return;
-      }
-    }
-    
-    if (!hasError) {
-      setHasError(true);
-      setImgSrc("https://placehold.co/150x150/FFCCCC/CC0000?text=Error+Loading");
-    }
-    setIsLoading(false);
-  };
-
-  const handleLoad = () => {
-    console.log('Image loaded successfully:', imgSrc);
-    setIsLoading(false);
-    setHasError(false);
-  };
-
-  // Tambahkan test untuk CORS dan availability
-  const testImageUrl = (url) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve(true);
-      img.onerror = () => resolve(false);
-      img.crossOrigin = 'anonymous';
-      img.src = url;
-    });
-  };
-
-  return (
-    <div style={{ position: 'relative', ...style }}>
-      {isLoading && (
-        <div 
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#f8f9fa',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '12px',
-            color: '#666',
-            borderRadius: '4px',
-            border: '1px solid #e9ecef'
-          }}
-        >
-          Loading...
-        </div>
-      )}
-      <img
-        src={imgSrc}
-        alt={altText || "Menu Item"}
-        className={className}
-        onError={handleError}
-        onLoad={handleLoad}
-        style={{
-          opacity: isLoading ? 0 : 1,
-          transition: 'opacity 0.3s ease',
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          borderRadius: '4px'
-        }}
-        crossOrigin="anonymous"
-      />
-      
-      {/* Debug info - bisa dihapus di production */}
-      {process.env.NODE_ENV === 'development' && (
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          color: 'white',
-          fontSize: '10px',
-          padding: '2px 4px',
-          borderRadius: '0 0 4px 4px'
-        }}>
-          {hasError ? 'ERROR' : 'OK'} | Retry: {retryCount}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// IMPROVED normalizeOrderItems function
+// IMPROVED normalizeOrderItems function - ganti yang ada di AdminPage.jsx
 const normalizeOrderItems = (itemsField) => {
   console.log('normalizeOrderItems called with:', {
     type: typeof itemsField,
@@ -243,17 +50,21 @@ const normalizeOrderItems = (itemsField) => {
     length: itemsField?.length || 0
   });
   
+  // Handle null/undefined
   if (!itemsField) {
     console.warn('itemsField is null/undefined, returning empty array');
     return [];
   }
   
+  // Already an array - return as is
   if (Array.isArray(itemsField)) {
     console.log('itemsField is already an array with', itemsField.length, 'items');
     return itemsField;
   }
   
+  // Handle string that needs parsing
   if (typeof itemsField === "string") {
+    // Handle empty string
     if (itemsField.trim() === '' || itemsField === 'null' || itemsField === 'undefined') {
       console.log('itemsField is empty/null string, returning empty array');
       return [];
@@ -277,10 +88,12 @@ const normalizeOrderItems = (itemsField) => {
       console.error('JSON parse error:', error.message);
       console.error('Failed string:', itemsField);
       
+      // Try to handle common malformed JSON cases
       try {
+        // Remove any trailing commas or fix common issues
         const cleanedString = itemsField
-          .replace(/,(\s*[}\]])/g, '$1')
-          .replace(/'/g, '"')
+          .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+          .replace(/'/g, '"')             // Replace single quotes with double quotes
           .trim();
           
         const retryParsed = JSON.parse(cleanedString);
@@ -300,7 +113,7 @@ const normalizeOrderItems = (itemsField) => {
   return [];
 };
 
-// IMPROVED toUnifiedItem function
+// IMPROVED toUnifiedItem function - ganti yang ada di AdminPage.jsx  
 const toUnifiedItem = (item) => {
   if (!item) {
     console.warn('toUnifiedItem called with null/undefined item');
@@ -313,6 +126,7 @@ const toUnifiedItem = (item) => {
     };
   }
 
+  // Debug the item structure
   console.log('Converting item to unified format:', {
     original: item,
     keys: Object.keys(item || {}),
@@ -359,6 +173,7 @@ const toUnifiedItem = (item) => {
     },
   };
 
+  // Validate the unified item
   if (unified.id_menu === 0) {
     console.warn('Unified item has no valid menu ID:', item);
   }
@@ -579,232 +394,237 @@ const AdminPage = () => {
     }
   };
 
-  const fetchOrders = async (force = false) => {
-    console.log('fetchOrders called, token:', !!token, 'force:', force);
-    
-    if (!token) {
-      console.log('No token available for fetchOrders');
-      return;
-    }
-    
-    if (ordersInFlightRef.current && !force) {
-      console.log('Orders request already in flight, skipping...');
-      return;
-    }
+// FIXED fetchOrders function - ganti function yang ada di AdminPage.jsx
+const fetchOrders = async (force = false) => {
+  console.log('fetchOrders called, token:', !!token, 'force:', force);
+  
+  if (!token) {
+    console.log('No token available for fetchOrders');
+    return;
+  }
+  
+  if (ordersInFlightRef.current && !force) {
+    console.log('Orders request already in flight, skipping...');
+    return;
+  }
 
-    if (ordersAbortRef.current) {
-      try {
-        ordersAbortRef.current.abort('New request initiated');
-      } catch (err) {
-        console.log('Previous request cleanup completed');
-      }
-    }
-
-    ordersInFlightRef.current = true;
-    const controller = new AbortController();
-    ordersAbortRef.current = controller;
-    
-    const timeoutId = setTimeout(() => {
-      console.log('Request timeout, aborting...');
-      controller.abort('Request timeout after 30 seconds');
-    }, 30000);
-
+  if (ordersAbortRef.current) {
     try {
-      console.log('Fetching orders from API...');
-      const url = `${apiBaseUrl}/orders?t=${Date.now()}${force ? "&force=1" : ""}`;
-      
-      const resp = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0"
-        },
-        signal: controller.signal,
-      });
+      ordersAbortRef.current.abort('New request initiated');
+    } catch (err) {
+      console.log('Previous request cleanup completed');
+    }
+  }
 
-      console.log('Orders response status:', resp.status);
-      
-      if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
-          console.log('Authentication failed in fetchOrders');
-          handleLogout();
-          return;
-        }
-        
-        const errorText = await resp.text();
-        console.error('API Error Response:', errorText);
-        throw new Error(`HTTP ${resp.status}: ${errorText}`);
+  ordersInFlightRef.current = true;
+  const controller = new AbortController();
+  ordersAbortRef.current = controller;
+  
+  const timeoutId = setTimeout(() => {
+    console.log('Request timeout, aborting...');
+    controller.abort('Request timeout after 30 seconds');
+  }, 30000);
+
+  try {
+    console.log('Fetching orders from API...');
+    const url = `${apiBaseUrl}/orders?t=${Date.now()}${force ? "&force=1" : ""}`;
+    
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      },
+      signal: controller.signal,
+    });
+
+    console.log('Orders response status:', resp.status);
+    
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        console.log('Authentication failed in fetchOrders');
+        handleLogout();
+        return;
       }
-
-      const responseText = await resp.text();
-      console.log('Orders response length:', responseText.length);
       
-      let data = [];
-      try {
-        const parsed = JSON.parse(responseText);
-        data = Array.isArray(parsed) ? parsed : [];
-        console.log('Orders parsed successfully:', data.length, 'orders');
-        
-        data.forEach((order, index) => {
-          console.log(`Order ${index + 1}:`, {
-            id: order.order_id,
-            items_type: typeof order.items,
-            items_length: order.items?.length || 0,
-            items_content: order.items
-          });
-          
-          try {
-            const parsedItems = normalizeOrderItems(order.items);
-            console.log(`Order ${order.order_id} normalized items:`, parsedItems.length, 'items');
-          } catch (itemError) {
-            console.error(`Error normalizing items for order ${order.order_id}:`, itemError);
-          }
+      const errorText = await resp.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`HTTP ${resp.status}: ${errorText}`);
+    }
+
+    const responseText = await resp.text();
+    console.log('Orders response length:', responseText.length);
+    
+    let data = [];
+    try {
+      const parsed = JSON.parse(responseText);
+      data = Array.isArray(parsed) ? parsed : [];
+      console.log('Orders parsed successfully:', data.length, 'orders');
+      
+      // Enhanced validation and debugging for each order
+      data.forEach((order, index) => {
+        console.log(`Order ${index + 1}:`, {
+          id: order.order_id,
+          items_type: typeof order.items,
+          items_length: order.items?.length || 0,
+          items_content: order.items
         });
         
-      } catch (parseError) {
-        console.error('Orders JSON parse error:', parseError);
-        console.error('Response text that failed to parse:', responseText.substring(0, 500));
-        data = [];
-      }
-
-      console.log('Setting orders state with:', data.length, 'orders');
-      setOrders(data);
-      setLastRefresh(new Date());
-      console.log('Orders state updated successfully');
-      
-    } catch (error) {
-      console.error('fetchOrders error:', error);
-      
-      if (error.name === 'AbortError') {
-        console.log('Request was aborted:', error.message || 'Unknown reason');
-      } else {
-        console.error('Unexpected fetchOrders error:', error.message);
-        
-        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-          console.error('Network connectivity issue detected');
-        } else if (error.message.includes('timeout')) {
-          console.error('Request timeout detected');
+        // Try to parse items immediately to catch issues early
+        try {
+          const parsedItems = normalizeOrderItems(order.items);
+          console.log(`Order ${order.order_id} normalized items:`, parsedItems.length, 'items');
+        } catch (itemError) {
+          console.error(`Error normalizing items for order ${order.order_id}:`, itemError);
         }
-      }
+      });
       
-    } finally {
-      clearTimeout(timeoutId);
-      ordersInFlightRef.current = false;
-      setTimeout(() => {
-        if (ordersAbortRef.current === controller) {
-          ordersAbortRef.current = null;
-        }
-      }, 1000);
+    } catch (parseError) {
+      console.error('Orders JSON parse error:', parseError);
+      console.error('Response text that failed to parse:', responseText.substring(0, 500));
+      data = [];
     }
-  };
+
+    console.log('Setting orders state with:', data.length, 'orders');
+    setOrders(data);
+    setLastRefresh(new Date());
+    console.log('Orders state updated successfully');
+    
+  } catch (error) {
+    console.error('fetchOrders error:', error);
+    
+    if (error.name === 'AbortError') {
+      console.log('Request was aborted:', error.message || 'Unknown reason');
+    } else {
+      console.error('Unexpected fetchOrders error:', error.message);
+      
+      // Show user-friendly error message
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        console.error('Network connectivity issue detected');
+      } else if (error.message.includes('timeout')) {
+        console.error('Request timeout detected');
+      }
+    }
+    
+  } finally {
+    clearTimeout(timeoutId);
+    ordersInFlightRef.current = false;
+    setTimeout(() => {
+      if (ordersAbortRef.current === controller) {
+        ordersAbortRef.current = null;
+      }
+    }, 1000);
+  }
+};
 
   const fetchMenuItems = async () => {
-    console.log('fetchMenuItems called, token:', !!token);
+  console.log('🍽️ fetchMenuItems called, token:', !!token);
+  
+  if (!token) {
+    console.log('❌ No token available for fetchMenuItems');
+    return;
+  }
+  
+  try {
+    console.log('🔄 Fetching menu items...');
+    const resp = await fetch(`${apiBaseUrl}/menu?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      },
+    });
     
-    if (!token) {
-      console.log('No token available for fetchMenuItems');
-      return;
-    }
+    console.log('🍽️ Menu response status:', resp.status);
     
-    try {
-      console.log('Fetching menu items...');
-      const resp = await fetch(`${apiBaseUrl}/menu?t=${Date.now()}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0"
-        },
-      });
-      
-      console.log('Menu response status:', resp.status);
-      
-      if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
-          console.log('Authentication failed in fetchMenuItems');
-          handleLogout();
-          return;
-        }
-        throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        console.log('🔐 Authentication failed in fetchMenuItems');
+        handleLogout();
+        return;
       }
-      
-      const data = await resp.json();
-      console.log('Menu data received:', data);
-      console.log('Menu data type:', typeof data, 'isArray:', Array.isArray(data));
-      console.log('Menu data length:', data?.length);
-      
-      const arr = Array.isArray(data) ? data : [];
-      console.log('Setting menuItems state with:', arr.length, 'items');
-      
-      setMenuItems(arr);
-      console.log('setMenuItems called successfully');
-
-      const sel = {};
-      arr.forEach((it) => {
-        if (it?.id_menu) sel[it.id_menu] = { spiciness: "", temperature: "" };
-      });
-      setNewOrderItemSelections(sel);
-      console.log('Selection map initialized');
-      
-    } catch (e) {
-      console.error('fetchMenuItems error:', e);
-    }
-  };
-
-  const fetchTables = async () => {
-    console.log('fetchTables called, token:', !!token);
-    
-    if (!token) {
-      console.log('No token available for fetchTables');
-      return;
+      throw new Error(`HTTP ${resp.status}`);
     }
     
-    try {
-      console.log('Fetching tables...');
-      const resp = await fetch(`${apiBaseUrl}/tables?t=${Date.now()}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0"
-        },
-      });
-      
-      console.log('Tables response status:', resp.status);
-      
-      if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
-          console.log('Authentication failed in fetchTables');
-          handleLogout();
-          return;
-        }
-        throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    console.log('🍽️ Menu data received:', data);
+    console.log('🍽️ Menu data type:', typeof data, 'isArray:', Array.isArray(data));
+    console.log('🍽️ Menu data length:', data?.length);
+    
+    const arr = Array.isArray(data) ? data : [];
+    console.log('🍽️ Setting menuItems state with:', arr.length, 'items');
+    
+    setMenuItems(arr);
+    console.log('🍽️ setMenuItems called successfully');
+
+    // Initialize selection map
+    const sel = {};
+    arr.forEach((it) => {
+      if (it?.id_menu) sel[it.id_menu] = { spiciness: "", temperature: "" };
+    });
+    setNewOrderItemSelections(sel);
+    console.log('🍽️ Selection map initialized');
+    
+  } catch (e) {
+    console.error('❌ fetchMenuItems error:', e);
+  }
+};
+
+const fetchTables = async () => {
+  console.log('🪑 fetchTables called, token:', !!token);
+  
+  if (!token) {
+    console.log('❌ No token available for fetchTables');
+    return;
+  }
+  
+  try {
+    console.log('🔄 Fetching tables...');
+    const resp = await fetch(`${apiBaseUrl}/tables?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      },
+    });
+    
+    console.log('🪑 Tables response status:', resp.status);
+    
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        console.log('🔐 Authentication failed in fetchTables');
+        handleLogout();
+        return;
       }
-      
-      const data = await resp.json();
-      console.log('Tables data received:', data);
-      console.log('Tables data length:', data?.length);
-      
-      const arr = Array.isArray(data) ? data : [];
-      console.log('Setting tables state with:', arr.length, 'tables');
-      
-      setTables(arr);
-      console.log('setTables called successfully');
-      
-    } catch (e) {
-      console.error('fetchTables error:', e);
+      throw new Error(`HTTP ${resp.status}`);
     }
-  };
+    
+    const data = await resp.json();
+    console.log('🪑 Tables data received:', data);
+    console.log('🪑 Tables data length:', data?.length);
+    
+    const arr = Array.isArray(data) ? data : [];
+    console.log('🪑 Setting tables state with:', arr.length, 'tables');
+    
+    setTables(arr);
+    console.log('🪑 setTables called successfully');
+    
+  } catch (e) {
+    console.error('❌ fetchTables error:', e);
+  }
+};
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -820,7 +640,7 @@ const AdminPage = () => {
 
   /**
    * ========================
-   * Menu CRUD - DIPERBAIKI DENGAN IMAGE HANDLING
+   * Menu CRUD
    * ========================
    */
   const handleImageChange = (e) => {
@@ -835,45 +655,11 @@ const AdminPage = () => {
     r.readAsDataURL(file);
   };
 
-  const validateImageUrl = async (url) => {
-    if (!url) return false;
-    
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve(true);
-      img.onerror = () => resolve(false);
-      img.src = processImageUrl(url);
-      
-      // Timeout after 5 seconds
-      setTimeout(() => resolve(false), 5000);
-    });
-  };
-
   const handleAddOrUpdateMenu = async () => {
-    console.log('=== SUBMIT MENU DEBUG ===');
-    console.log('newMenu state:', newMenu);
-    console.log('imageUrlPreview:', newMenu.imageUrlPreview);
-    console.log('processedImageUrl:', processImageUrl(newMenu.imageUrlPreview));
-
     if (!newMenu.name.trim() || !newMenu.price || !newMenu.category) {
       alert("Nama, harga, dan kategori menu tidak boleh kosong!");
       return;
     }
-
-    const processedImageUrl = processImageUrl(newMenu.imageUrlPreview);
-    
-    // Validate image URL if provided
-    if (newMenu.imageUrlPreview && !processedImageUrl.includes('placehold.co')) {
-      console.log('Validating image URL...');
-      const isValid = await validateImageUrl(newMenu.imageUrlPreview);
-      if (!isValid) {
-        const confirmProceed = window.confirm(
-          'URL gambar mungkin tidak valid atau tidak dapat diakses. Lanjutkan tanpa gambar?'
-        );
-        if (!confirmProceed) return;
-      }
-    }
-
     const payload = {
       name: newMenu.name.trim(),
       description: (newMenu.description || "").trim(),
@@ -881,10 +667,11 @@ const AdminPage = () => {
       category: newMenu.category,
       is_available:
         newMenu.is_available === 0 || newMenu.is_available === "0" ? 0 : 1,
-      image_link: processedImageUrl && !processedImageUrl.includes('placehold.co') ? processedImageUrl : null,
+      image_link:
+        newMenu.imageUrlPreview && !newMenu.imageUrlPreview.startsWith("data:")
+          ? newMenu.imageUrlPreview
+          : null,
     };
-
-    console.log('Payload being sent:', payload);
 
     const isEdit = Boolean(editingMenu?.id_menu);
     const url = isEdit
@@ -1080,49 +867,54 @@ const AdminPage = () => {
    * Orders
    * ========================
    */
-  const updateOrderStatus = async (orderId, newStatus) => {
-    if (!orderId || !newStatus) return;
-    if (!window.confirm(`Ubah status pesanan ${orderId} menjadi ${newStatus}?`)) return;
+// Fix updateOrderStatus function
+const updateOrderStatus = async (orderId, newStatus) => {
+  if (!orderId || !newStatus) return;
+  if (!window.confirm(`Ubah status pesanan ${orderId} menjadi ${newStatus}?`)) return;
+  
+  try {
+    const resp = await fetch(`${apiBaseUrl}/orders/${orderId}/status?t=${Date.now()}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ status: newStatus }),
+    });
     
-    try {
-      const resp = await fetch(`${apiBaseUrl}/orders/${orderId}/status?t=${Date.now()}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      
-      const result = await resp.json();
-      
-      if (!resp.ok) {
-        throw new Error(result.message || `HTTP ${resp.status}`);
-      }
-      
-      await fetchOrders(true);
-      
-      const updatedOrder = orders.find(o => o.order_id === orderId);
-      if (updatedOrder && updatedOrder.order_status === newStatus) {
-        alert(`Status pesanan ${orderId} berhasil diubah!`);
-      } else {
-        alert(`Status pesanan ${orderId} diupdate. Silakan refresh jika belum terlihat.`);
-      }
-      
-    } catch (e) {
-      console.error('Update status error:', e);
-      
-      await fetchOrders(true);
-      
-      const updatedOrder = orders.find(o => o.order_id === orderId);
-      if (updatedOrder && updatedOrder.order_status === newStatus) {
-        alert(`Status pesanan ${orderId} berhasil diubah!`);
-      } else {
-        alert(`Gagal update status: ${e.message}`);
-      }
+    const result = await resp.json();
+    
+    if (!resp.ok) {
+      throw new Error(result.message || `HTTP ${resp.status}`);
     }
-  };
+    
+    // PERBAIKAN: Selalu refresh data dan hanya tampilkan success message
+    await fetchOrders(true);
+    
+    // Check if update actually worked by finding the order
+    const updatedOrder = orders.find(o => o.order_id === orderId);
+    if (updatedOrder && updatedOrder.order_status === newStatus) {
+      alert(`Status pesanan ${orderId} berhasil diubah!`);
+    } else {
+      alert(`Status pesanan ${orderId} diupdate. Silakan refresh jika belum terlihat.`);
+    }
+    
+  } catch (e) {
+    console.error('Update status error:', e);
+    
+    // PERBAIKAN: Refresh data dulu sebelum tampilkan error
+    await fetchOrders(true);
+    
+    const updatedOrder = orders.find(o => o.order_id === orderId);
+    if (updatedOrder && updatedOrder.order_status === newStatus) {
+      // Actually succeeded despite error message
+      alert(`Status pesanan ${orderId} berhasil diubah!`);
+    } else {
+      alert(`Gagal update status: ${e.message}`);
+    }
+  }
+};
 
   const handleCashierPaymentClick = (orderId, amount) => {
     setSelectedOrderIdForPayment(orderId);
@@ -1130,58 +922,64 @@ const AdminPage = () => {
     setIsPaymentModalOpen(true);
   };
 
-  const updateOrderPaymentStatus = async (orderId, modalPaymentStatus, paymentMethod) => {
-    try {
-      let statusToSend = modalPaymentStatus;
-      if (modalPaymentStatus === "paid") statusToSend = "Sudah Bayar";
-      if (modalPaymentStatus === "unpaid") statusToSend = "Belum Bayar";
+ const updateOrderPaymentStatus = async (orderId, modalPaymentStatus, paymentMethod) => {
+  try {
+    let statusToSend = modalPaymentStatus;
+    if (modalPaymentStatus === "paid") statusToSend = "Sudah Bayar";
+    if (modalPaymentStatus === "unpaid") statusToSend = "Belum Bayar";
 
-      const resp = await fetch(
-        `${apiBaseUrl}/orders/${orderId}/payment_status?t=${Date.now()}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "Cache-Control": "no-cache",
-          },
-          cache: "no-store",
-          body: JSON.stringify({
-            payment_status: statusToSend,
-            payment_method: paymentMethod || "cash",
-          }),
-        }
-      );
-
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        throw new Error(j.message || `HTTP ${resp.status}`);
+    const resp = await fetch(
+      `${apiBaseUrl}/orders/${orderId}/payment_status?t=${Date.now()}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Cache-Control": "no-cache",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          payment_status: statusToSend,
+          payment_method: paymentMethod || "cash",
+        }),
       }
+    );
 
-      setIsPaymentModalOpen(false);
-      setSelectedOrderIdForPayment(0);
-      setSelectedOrderTotalAmount(0);
-
-      alert(`Status pembayaran pesanan ${orderId} berhasil diupdate!`);
-      
-      await fetchOrders(true);
-      
-      return Promise.resolve();
-      
-    } catch (e) {
-      console.error('Payment update error:', e);
-      
-      setIsPaymentModalOpen(false);
-      setSelectedOrderIdForPayment(0);
-      setSelectedOrderTotalAmount(0);
-      
-      await fetchOrders(true);
-      
-      alert(`Error: ${e.message}. Silakan cek status pembayaran di daftar pesanan.`);
-      return Promise.reject(e);
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      throw new Error(j.message || `HTTP ${resp.status}`);
     }
-  };
+
+    // PERBAIKAN: Close modal sebelum refresh
+    setIsPaymentModalOpen(false);
+    setSelectedOrderIdForPayment(0);
+    setSelectedOrderTotalAmount(0);
+
+    // Success message
+    alert(`Status pembayaran pesanan ${orderId} berhasil diupdate!`);
+    
+    // Refresh orders
+    await fetchOrders(true);
+    
+    // Return resolved promise
+    return Promise.resolve();
+    
+  } catch (e) {
+    console.error('Payment update error:', e);
+    
+    // PERBAIKAN: Tetap close modal meskipun error
+    setIsPaymentModalOpen(false);
+    setSelectedOrderIdForPayment(0);
+    setSelectedOrderTotalAmount(0);
+    
+    // Check if payment actually succeeded by refreshing data
+    await fetchOrders(true);
+    
+    alert(`Error: ${e.message}. Silakan cek status pembayaran di daftar pesanan.`);
+    return Promise.reject(e);
+  }
+};
 
   const findEditOrderCartItem = (itemId, options) =>
     (editOrderCart || []).find(
@@ -1289,6 +1087,7 @@ const AdminPage = () => {
       }
     );
 
+    // fallback route
     if (resp.status === 404) {
       resp = await fetch(
         `${apiBaseUrl}/orders/update/${selectedOrderForDetail.order_id}?t=${Date.now()}`,
@@ -1385,83 +1184,89 @@ const AdminPage = () => {
       0
     );
 
-  const handleAddOrderForCashier = async () => {
-    if (isSubmittingOrder) {
-      console.log('Order submission already in progress...');
-      return;
-    }
+const handleAddOrderForCashier = async () => {
+  // Prevent multiple submissions
+  if (isSubmittingOrder) {
+    console.log('Order submission already in progress...');
+    return;
+  }
 
-    const valid = (newOrderCart || []).filter(
-      (it) => it?.id_menu && Number(it?.quantity) > 0
-    );
-    
-    if (valid.length === 0) {
-      alert("Keranjang pesanan kosong.");
-      return;
-    }
+  const valid = (newOrderCart || []).filter(
+    (it) => it?.id_menu && Number(it?.quantity) > 0
+  );
+  
+  if (valid.length === 0) {
+    alert("Keranjang pesanan kosong.");
+    return;
+  }
 
-    setIsSubmittingOrder(true);
+  setIsSubmittingOrder(true); // Start loading
 
-    const items = valid.map((it) => ({
-      id_menu: Number(it.id_menu),
-      quantity: Number(it.quantity),
-      spiciness_level: it?.options?.spiciness || null,
-      temperature_level: it?.options?.temperature || null,
-    }));
+  const items = valid.map((it) => ({
+    id_menu: Number(it.id_menu),
+    quantity: Number(it.quantity),
+    spiciness_level: it?.options?.spiciness || null,
+    temperature_level: it?.options?.temperature || null,
+  }));
 
-    const payload = {
-      tableNumber: "Take Away",
-      items,
-      customerName: newOrderCustomerName.trim() || null,
-    };
-
-    console.log('Submitting order:', payload);
-
-    try {
-      const resp = await fetch(`${apiBaseUrl}/orders?t=${Date.now()}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      console.log('Order submission response status:', resp.status);
-
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}));
-        throw new Error(j.message || `HTTP ${resp.status}`);
-      }
-
-      const j = await resp.json();
-      console.log('Order creation response:', j);
-
-      setIsAddOrderModalOpen(false);
-      
-      setNewOrderCustomerName("");
-      setNewOrderCart([]);
-      const sel = {};
-      (menuItems || []).forEach((mi) => {
-        if (mi?.id_menu) sel[mi.id_menu] = { spiciness: "", temperature: "" };
-      });
-      setNewOrderItemSelections(sel);
-
-      alert(`Pesanan baru berhasil dibuat! ID: ${j.orderId || "unknown"}`);
-      
-      setTimeout(() => {
-        fetchOrders(true);
-      }, 1000);
-
-    } catch (e) {
-      console.error('Order submission error:', e);
-      alert(`Gagal membuat pesanan: ${e.message}`);
-    } finally {
-      setIsSubmittingOrder(false);
-    }
+  const payload = {
+    tableNumber: "Take Away",
+    items,
+    customerName: newOrderCustomerName.trim() || null,
   };
+
+  console.log('Submitting order:', payload);
+
+  try {
+    const resp = await fetch(`${apiBaseUrl}/orders?t=${Date.now()}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "Cache-Control": "no-cache",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    console.log('Order submission response status:', resp.status);
+
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      throw new Error(j.message || `HTTP ${resp.status}`);
+    }
+
+    const j = await resp.json();
+    console.log('Order creation response:', j);
+
+    // Close modal immediately
+    setIsAddOrderModalOpen(false);
+    
+    // Clear form
+    setNewOrderCustomerName("");
+    setNewOrderCart([]);
+    const sel = {};
+    (menuItems || []).forEach((mi) => {
+      if (mi?.id_menu) sel[mi.id_menu] = { spiciness: "", temperature: "" };
+    });
+    setNewOrderItemSelections(sel);
+
+    // Show success message immediately
+    alert(`Pesanan baru berhasil dibuat! ID: ${j.orderId || "unknown"}`);
+    
+    // Refresh orders after short delay
+    setTimeout(() => {
+      fetchOrders(true);
+    }, 1000);
+
+  } catch (e) {
+    console.error('Order submission error:', e);
+    alert(`Gagal membuat pesanan: ${e.message}`);
+  } finally {
+    setIsSubmittingOrder(false); // End loading
+  }
+};
+
 
   // ====== Reports
   const fetchSalesReport = async () => {
@@ -1641,102 +1446,113 @@ const AdminPage = () => {
    * Effects
    * ========================
    */
-  useEffect(() => {
-    console.log('useEffect triggered - token:', !!token);
-    
-    if (!token) {
-      console.log('No token, skipping data fetch');
-      return;
+// Tambahkan di bagian atas AdminPage.jsx untuk debugging network requests
+// GANTI useEffect yang ada di AdminPage.jsx dengan ini:
+
+useEffect(() => {
+  console.log('useEffect triggered - token:', !!token);
+  
+  if (!token) {
+    console.log('No token, skipping data fetch');
+    return;
+  }
+  
+  let intervalId;
+  
+  const initializeData = async () => {
+    try {
+      console.log('Starting data initialization...');
+      
+      // Warmup backend
+      await warmupBackend();
+      console.log('Backend warmed up');
+      
+      // Fetch all data
+      await fetchOrders(true);
+      console.log('Orders fetched');
+      
+      await fetchMenuItems();
+      console.log('Menu items fetched');
+      
+      await fetchTables();
+      console.log('Tables fetched');
+      
+      console.log('All data fetched successfully');
+      
+      // Set up interval for orders only
+      intervalId = setInterval(() => {
+        console.log('Interval fetch orders...');
+        fetchOrders(true);
+      }, 10000); // Increased to 10 seconds
+      
+    } catch (error) {
+      console.error('Error in data initialization:', error);
     }
-    
-    let intervalId;
-    
-    const initializeData = async () => {
-      try {
-        console.log('Starting data initialization...');
-        
-        await warmupBackend();
-        console.log('Backend warmed up');
-        
-        await fetchOrders(true);
-        console.log('Orders fetched');
-        
-        await fetchMenuItems();
-        console.log('Menu items fetched');
-        
-        await fetchTables();
-        console.log('Tables fetched');
-        
-        console.log('All data fetched successfully');
-        
-        intervalId = setInterval(() => {
-          console.log('Interval fetch orders...');
-          fetchOrders(true);
-        }, 10000);
-        
-      } catch (error) {
-        console.error('Error in data initialization:', error);
-      }
-    };
-    
-    initializeData();
-    
-    return () => {
-      console.log('Cleaning up useEffect...');
-      try {
-        if (intervalId) {
-          clearInterval(intervalId);
-          console.log('Interval cleared');
-        }
-      } catch (e) {
-        console.error('Error clearing interval:', e);
-      }
-      try {
-        if (ordersAbortRef.current) {
-          ordersAbortRef.current.abort('Component unmounting');
-          console.log('Pending requests aborted');
-        }
-      } catch (e) {
-        console.error('Error aborting requests:', e);
-      }
-    };
-  }, [token]);
-
-  useEffect(() => {
-    console.log('MenuItems state updated:', menuItems.length, 'items');
-  }, [menuItems]);
-
-  useEffect(() => {
-    console.log('Tables state updated:', tables.length, 'tables');
-  }, [tables]);
-
-  useEffect(() => {
-    console.log('Orders state updated:', orders.length, 'orders');
-  }, [orders]);
-
-  const showEditOrder = (order) => {
-    console.log('showEditOrder called with:', order);
-    
-    if (!order?.items) {
-      alert("Data pesanan tidak valid");
-      return;
-    }
-
-    const normalizedItems = normalizeOrderItems(order.items);
-    if (!normalizedItems || normalizedItems.length === 0) {
-      alert("Pesanan ini tidak memiliki item yang valid");
-      return;
-    }
-
-    const existing = normalizedItems.map(toUnifiedItem).filter((it) => it.id_menu > 0 && it.quantity > 0);
-    
-    setEditOrderCart(existing);
-    setSelectedOrderForDetail(order);
-    setIsEditOrderModalOpen(true);
   };
+  
+  // Call initialization
+  initializeData();
+  
+  // Cleanup function
+  return () => {
+    console.log('Cleaning up useEffect...');
+    try {
+      if (intervalId) {
+        clearInterval(intervalId);
+        console.log('Interval cleared');
+      }
+    } catch (e) {
+      console.error('Error clearing interval:', e);
+    }
+    try {
+      if (ordersAbortRef.current) {
+        ordersAbortRef.current.abort('Component unmounting');
+        console.log('Pending requests aborted');
+      }
+    } catch (e) {
+      console.error('Error aborting requests:', e);
+    }
+  };
+}, [token]); // Keep dependency on token
+
+// TAMBAHAN: useEffect untuk debug state changes
+useEffect(() => {
+  console.log('MenuItems state updated:', menuItems.length, 'items');
+}, [menuItems]);
+
+useEffect(() => {
+  console.log('Tables state updated:', tables.length, 'tables');
+}, [tables]);
+
+useEffect(() => {
+  console.log('Orders state updated:', orders.length, 'orders');
+}, [orders]);
+
+// FIXED showEditOrder function - ganti yang ada di AdminPage.jsx
+const showEditOrder = (order) => {
+  console.log('showEditOrder called with:', order);
+  
+  if (!order?.items) {
+    alert("Data pesanan tidak valid");
+    return;
+  }
+
+  const normalizedItems = normalizeOrderItems(order.items);
+  if (!normalizedItems || normalizedItems.length === 0) {
+    alert("Pesanan ini tidak memiliki item yang valid");
+    return;
+  }
+
+  const existing = normalizedItems.map(toUnifiedItem).filter((it) => it.id_menu > 0 && it.quantity > 0);
+  
+  setEditOrderCart(existing);
+  setSelectedOrderForDetail(order);
+  setIsEditOrderModalOpen(true);
+};
 
   useEffect(() => {
     if (activeTab === "laporan" && token) fetchSalesReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, token, reportDateRange.startDate, reportDateRange.endDate]);
 
   /**
@@ -2074,12 +1890,12 @@ const AdminPage = () => {
                                     Bayar
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => showEditOrder(order)}
-                                  className="order-action-button btn-warning"
-                                >
-                                  Edit
-                                </button>
+<button
+  onClick={() => showEditOrder(order)}
+  className="order-action-button btn-warning"
+>
+  Edit
+</button>
                                 {order.payment_status === "Sudah Bayar" && (
                                   <button
                                     onClick={() =>
@@ -2121,7 +1937,7 @@ const AdminPage = () => {
           </div>
         )}
 
-        {/* Manajemen Menu - BAGIAN YANG DIPERBAIKI */}
+        {/* Manajemen Menu */}
         {activeTab === "manajemen-menu" && userRole === "admin" && (
           <div className="admin-section-box">
             <div className="menu-header-controls">
@@ -2166,12 +1982,17 @@ const AdminPage = () => {
                         key={item.id_menu}
                         className="menu-item-management-card"
                       >
-                        {/* GAMBAR YANG DIPERBAIKI */}
-                        <MenuItemImage
-                          imageUrl={item.image_url}
-                          altText={item.name}
+                        <img
+                          src={
+                            item.image_url ||
+                            "https://placehold.co/150x150/CCCCCC/000000?text=No+Image"
+                          }
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "https://placehold.co/150x150/CCCCCC/000000?text=No+Image";
+                          }}
+                          alt={item.name || "Menu Item"}
                           className="menu-item-management-image"
-                          style={{ width: '100%', height: '150px', borderRadius: '8px' }}
                         />
                         <p>
                           <strong>{item.name || "Unknown"}</strong> (Rp{" "}
@@ -2278,135 +2099,24 @@ const AdminPage = () => {
                   <option value="camilan-gurih">CAMILAN - GURIH</option>
                   <option value="lain-lain">LAIN-LAIN</option>
                 </select>
-
-                {/* INPUT URL GAMBAR YANG DIPERBAIKI */}
-                <div className="menu-form-input-group" style={{ marginBottom: '15px' }}>
-                  <label htmlFor="imageUrl" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                    URL Gambar:
-                  </label>
-                  <input
-                    type="url"
-                    id="imageUrl"
-                    placeholder="Paste Imgur, Google Drive, atau direct image URL di sini"
-                    value={newMenu.imageUrlPreview || ''}
-                    onChange={(e) => {
-                      const url = e.target.value.trim();
-                      console.log('Image URL input changed:', url);
-                      setNewMenu((p) => ({ 
-                        ...p, 
-                        imageUrlPreview: url,
-                        imageFile: null
-                      }));
-                    }}
-                    className="menu-form-input"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
-                  <small style={{ 
-                    display: 'block', 
-                    marginTop: '5px', 
-                    fontSize: '12px', 
-                    color: '#666',
-                    fontStyle: 'italic' 
-                  }}>
-                    Contoh: https://imgur.com/PCjv5M atau https://i.imgur.com/PCjv5M.jpg
-                    <br />
-                    Juga mendukung Google Drive dan URL gambar langsung lainnya.
-                  </small>
-                  
-                  {/* Test button untuk debug */}
-                  {newMenu.imageUrlPreview && (
-                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const processedUrl = processImageUrl(newMenu.imageUrlPreview);
-                          console.log('Original URL:', newMenu.imageUrlPreview);
-                          console.log('Processed URL:', processedUrl);
-                          window.open(processedUrl, '_blank');
-                        }}
-                        style={{
-                          padding: '4px 8px',
-                          fontSize: '12px',
-                          backgroundColor: '#f8f9fa',
-                          border: '1px solid #ddd',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Test URL
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const isValid = await validateImageUrl(newMenu.imageUrlPreview);
-                          alert(isValid ? 'URL gambar valid!' : 'URL gambar tidak dapat diakses');
-                        }}
-                        style={{
-                          padding: '4px 8px',
-                          fontSize: '12px',
-                          backgroundColor: '#e9ecef',
-                          border: '1px solid #ddd',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Validate URL
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* PREVIEW GAMBAR YANG DIPERBAIKI */}
-                {newMenu.imageUrlPreview && (
-                  <div className="menu-image-preview-container" style={{ marginBottom: '15px' }}>
-                    <div style={{ marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
-                      Preview Gambar:
-                    </div>
-                    <MenuItemImage
-                      imageUrl={newMenu.imageUrlPreview}
-                      altText="Preview"
+                <input
+                  type="file"
+                  id="menuImageUpload"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="menu-form-file"
+                />
+                {newMenu.imageUrlPreview ? (
+                  <div className="menu-image-preview-container">
+                    <img
+                      src={newMenu.imageUrlPreview}
+                      alt="Preview"
                       className="menu-image-preview"
-                      style={{ 
-                        maxWidth: '250px', 
-                        maxHeight: '200px', 
-                        border: '2px solid #ddd', 
-                        borderRadius: '8px',
-                        backgroundColor: '#f8f9fa' 
-                      }}
                     />
-                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#666', fontFamily: 'monospace' }}>
-                      <strong>Original:</strong> {newMenu.imageUrlPreview.substring(0, 60)}{newMenu.imageUrlPreview.length > 60 ? '...' : ''}
-                      <br />
-                      <strong>Processed:</strong> {processImageUrl(newMenu.imageUrlPreview).substring(0, 60)}{processImageUrl(newMenu.imageUrlPreview).length > 60 ? '...' : ''}
-                    </div>
                   </div>
-                )}
-
-                <div className="menu-form-availability">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
-                    <input
-                      type="checkbox"
-                      checked={newMenu.is_available === 1}
-                      onChange={(e) =>
-                        setNewMenu((p) => ({ ...p, is_available: e.target.checked ? 1 : 0 }))
-                      }
-                    />
-                    Menu Tersedia
-                  </label>
-                </div>
-
+                ) : null}
                 <div className="menu-form-actions">
-                  <button 
-                    onClick={handleAddOrUpdateMenu} 
-                    className="menu-add-button"
-                    style={{ marginRight: '10px' }}
-                  >
+                  <button onClick={handleAddOrUpdateMenu} className="menu-add-button">
                     {editingMenu ? "Update Menu" : "Tambah Menu"}
                   </button>
                   <button onClick={handleCancelEdit} className="menu-action-button btn-secondary">
@@ -2422,12 +2132,10 @@ const AdminPage = () => {
         {activeTab === "manajemen-meja" && userRole === "admin" && (
           <div className="admin-section-box">
             <h2 className="admin-section-title">Manajemen Meja</h2>
-
             <div className="table-form">
-              <h3>Tambah Meja Baru:</h3>
               <input
                 type="text"
-                placeholder="Nomor Meja"
+                placeholder="Nomor Meja (misal: Meja 1, Bar 3)"
                 value={newTable.table_number}
                 onChange={(e) =>
                   setNewTable((p) => ({ ...p, table_number: e.target.value }))
@@ -2448,38 +2156,30 @@ const AdminPage = () => {
               </button>
             </div>
 
-            <h3>Daftar Meja & QR Code:</h3>
-            {tables.length === 0 ? (
-              <p className="no-data-message">Belum ada meja.</p>
-            ) : (
-              <div className="tables-grid">
-                {tables.map((table) => (
-                  <div key={table.table_id} className="table-card">
-                    <h4>Meja {table.table_number}</h4>
-                    {table.capacity && <p>Kapasitas: {table.capacity} orang</p>}
-                    
-                    <div className="qr-section">
-                      <QRCodeSVG
-                        id={`qr-table-${String(table.table_number).replace(/\s/g, "-")}`}
-                        value={generateQrUrl(table.table_number)}
-                        size={120}
-                        level="M"
-                        includeMargin={true}
-                      />
-                      <button
-                        onClick={() => handleDownloadQR(table.table_number)}
-                        className="download-qr-button"
-                      >
-                        Download QR
-                      </button>
-                    </div>
-                    
-                    <div className="table-url">
-                      <small>{generateQrUrl(table.table_number)}</small>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <h3>QR Code Meja:</h3>
+            <div className="qr-code-grid">
+              {tables.map((t) => (
+                <div key={t.id_table} className="qr-card">
+                  <h4 className="qr-card-title">Meja {t.table_number || "N/A"}</h4>
+                  <p className="qr-card-status">Status: {t.status || "Available"}</p>
+                  <QRCodeSVG
+                    id={`qr-table-${String(t.table_number || "unknown").replace(/\s/g, "-")}`}
+                    value={generateQrUrl(t.table_number)}
+                    size={100}
+                    level="H"
+                    includeMargin
+                  />
+                  <button
+                    onClick={() => handleDownloadQR(t.table_number)}
+                    className="qr-download-button"
+                  >
+                    Unduh QR
+                  </button>
+                </div>
+              ))}
+            </div>
+            {tables.length === 0 && (
+              <p className="no-tables-message">Belum ada meja. Tambahkan meja baru di atas.</p>
             )}
           </div>
         )}
@@ -2489,86 +2189,116 @@ const AdminPage = () => {
           <div className="admin-section-box">
             <h2 className="admin-section-title">Laporan Penjualan</h2>
 
-            <div className="report-controls">
-              <div className="date-range-inputs">
-                <label>
-                  Tanggal Mulai:
-                  <input
-                    type="date"
-                    value={reportDateRange.startDate}
-                    onChange={(e) =>
-                      setReportDateRange((p) => ({ ...p, startDate: e.target.value }))
-                    }
-                    className="date-input"
-                  />
-                </label>
-                <label>
-                  Tanggal Akhir:
-                  <input
-                    type="date"
-                    value={reportDateRange.endDate}
-                    onChange={(e) =>
-                      setReportDateRange((p) => ({ ...p, endDate: e.target.value }))
-                    }
-                    className="date-input"
-                  />
-                </label>
+            <div className="report-filters">
+              <div className="date-filter-group">
+                <label>Dari Tanggal:</label>
+                <input
+                  type="date"
+                  value={reportDateRange.startDate}
+                  onChange={(e) =>
+                    setReportDateRange((p) => ({ ...p, startDate: e.target.value }))
+                  }
+                  className="report-date-input"
+                />
               </div>
+              <div className="date-filter-group">
+                <label>Sampai Tanggal:</label>
+                <input
+                  type="date"
+                  value={reportDateRange.endDate}
+                  onChange={(e) =>
+                    setReportDateRange((p) => ({ ...p, endDate: e.target.value }))
+                  }
+                  className="report-date-input"
+                />
+              </div>
+              <button
+                onClick={fetchSalesReport}
+                className="generate-report-button"
+                disabled={isLoadingReport}
+              >
+                {isLoadingReport ? "Loading..." : "Generate Laporan"}
+              </button>
               <button
                 onClick={exportReportToCSV}
                 className="export-button"
-                disabled={isLoadingReport}
+                disabled={isLoadingReport || (reportData.totalOrders || 0) === 0}
               >
                 Export CSV
               </button>
             </div>
 
             {isLoadingReport ? (
-              <p>Memuat laporan...</p>
+              <div className="loading-message">Memuat laporan...</div>
             ) : (
-              <div className="report-content">
+              <>
                 <div className="report-summary">
-                  <h3>Ringkasan Periode {reportDateRange.startDate} - {reportDateRange.endDate}</h3>
-                  <div className="summary-cards">
-                    <div className="summary-card">
-                      <h4>Total Penjualan</h4>
-                      <p className="summary-value">Rp {formatPrice(reportData.totalSales || 0)}</p>
+                  <div className="summary-card">
+                    <h3>Total Penjualan</h3>
+                    <p className="summary-value">Rp {formatPrice(reportData.totalSales || 0)}</p>
+                  </div>
+                  <div className="summary-card">
+                    <h3>Total Pesanan</h3>
+                    <p className="summary-value">{reportData.totalOrders || 0}</p>
+                  </div>
+                  <div className="summary-card">
+                    <h3>Pesanan Selesai</h3>
+                    <p className="summary-value success">{reportData.completedOrders || 0}</p>
+                  </div>
+                  <div className="summary-card">
+                    <h3>Pesanan Dibatalkan</h3>
+                    <p className="summary-value danger">{reportData.cancelledOrders || 0}</p>
+                  </div>
+                  <div className="summary-card">
+                    <h3>Pesanan Dalam Proses</h3>
+                    <p className="summary-value info">{reportData.pendingOrders || 0}</p>
+                  </div>
+                </div>
+
+                <div className="today-sales">
+                  <h3>
+                    Penjualan Tanggal Awal Periode (
+                    {new Date(reportDateRange.startDate).toLocaleDateString("id-ID")}
+                    )
+                  </h3>
+                  <div className="today-stats">
+                    <div className="today-stat">
+                      <span>Pendapatan: </span>
+                      <strong>Rp {formatPrice(reportData.totalSalesToday || 0)}</strong>
                     </div>
-                    <div className="summary-card">
-                      <h4>Total Pesanan</h4>
-                      <p className="summary-value">{reportData.totalOrders || 0}</p>
-                    </div>
-                    <div className="summary-card">
-                      <h4>Pesanan Selesai</h4>
-                      <p className="summary-value">{reportData.completedOrders || 0}</p>
-                    </div>
-                    <div className="summary-card">
-                      <h4>Pesanan Dibatalkan</h4>
-                      <p className="summary-value">{reportData.cancelledOrders || 0}</p>
+                    <div className="today-stat">
+                      <span>Pesanan: </span>
+                      <strong>{reportData.totalOrdersToday || 0}</strong>
                     </div>
                   </div>
                 </div>
 
-                <div className="report-details">
-                  <h4>Menu Terlaris</h4>
-                  {(reportData.topSellingItems || []).length === 0 ? (
-                    <p>Tidak ada data menu.</p>
+                <div className="top-selling-section">
+                  <h3>Menu Terlaris (Periode Dipilih)</h3>
+                  {!reportData.topSellingItems?.length ? (
+                    <p className="no-data-message">Tidak ada data penjualan untuk periode yang dipilih.</p>
                   ) : (
                     <div className="top-selling-table">
                       <table>
                         <thead>
                           <tr>
+                            <th>Peringkat</th>
                             <th>Nama Menu</th>
                             <th>Jumlah Terjual</th>
                             <th>Total Pendapatan</th>
+                            <th>Rata-rata Harga</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {(reportData.topSellingItems || []).map((item, idx) => (
-                            <tr key={idx}>
-                              <td>{item.menu_name || "Unknown"}</td>
-                              <td>{item.total_quantity || 0}</td>
-                              <td>Rp {formatPrice(item.total_revenue || 0)}</td>
+                          {reportData.topSellingItems.map((it, i) => (
+                            <tr key={it.menu_item_id || `${it.menu_name}-${i}`}>
+                              <td className="rank-cell">#{i + 1}</td>
+                              <td className="menu-name-cell">{it.menu_name || "Unknown"}</td>
+                              <td className="quantity-cell">{it.total_quantity || 0}</td>
+                              <td className="revenue-cell">
+                                Rp {formatPrice(it.total_revenue || 0)}
+                              </td>
+                              <td className="avg-price-cell">Rp {formatPrice(it.avg_price || 0)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -2576,349 +2306,443 @@ const AdminPage = () => {
                     </div>
                   )}
                 </div>
-              </div>
+
+                {reportData.salesByPaymentMethod?.length > 0 && (
+                  <div className="payment-method-section">
+                    <h3>Penjualan per Metode Pembayaran</h3>
+                    <div className="payment-method-stats">
+                      {reportData.salesByPaymentMethod.map((m, i) => (
+                        <div key={m.payment_method || i} className="payment-stat-card">
+                          <h4>{m.payment_method || "Belum Ditentukan"}</h4>
+                          <p>Jumlah: {m.order_count || 0} pesanan</p>
+                          <p>Total: Rp {formatPrice(m.total_amount || 0)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {reportData.salesByDate?.length > 0 && (
+                  <div className="daily-sales-section">
+                    <h3>Penjualan Harian</h3>
+                    <div className="daily-sales-chart">
+                      {reportData.salesByDate.map((d, i) => (
+                        <div key={d.sale_date || i} className="daily-sale-item">
+                          <span className="sale-date">
+                            {d.sale_date
+                              ? new Date(d.sale_date).toLocaleDateString("id-ID")
+                              : "Unknown Date"}
+                          </span>
+                          <span className="sale-amount">
+                            Rp {formatPrice(d.daily_total || 0)}
+                          </span>
+                          <span className="sale-orders">({d.order_count || 0} pesanan)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
       </div>
 
-      {/* Add Order Modal */}
-      {isAddOrderModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsAddOrderModalOpen(false)}>
-          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Tambah Pesanan Baru</h3>
-              <button
-                className="modal-close-button"
-                onClick={() => setIsAddOrderModalOpen(false)}
+{/* Edit Order Modal */}
+{isEditOrderModalOpen && selectedOrderForDetail && (
+  <div className="edit-order-modal-overlay">
+    <div className="edit-order-container">
+      <div className="edit-order-header">
+        <button className="back-btn" onClick={closeEditOrder}>
+          ←
+        </button>
+        <h2>Edit Pesanan #{selectedOrderForDetail.order_id || "N/A"}</h2>
+      </div>
+
+      <div className="edit-alert">
+        <strong>Info:</strong> Anda sedang mengedit pesanan yang sudah ada.
+      </div>
+
+      <div className="edit-menu-section">
+        <div className="edit-section-title">Menu Tersedia</div>
+
+        {Object.entries(groupMenuByCategory(menuItems)).map(
+          ([category, categoryItems]) => (
+            <div
+              key={category}
+              className="edit-menu-category-section"
+              style={{
+                marginBottom: 25,
+                border: "2px solid #27ae60",
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              <h3
+                className="edit-category-title"
+                style={{
+                  background: "#f8f9fa",
+                  padding: "12px 20px",
+                  margin: 0,
+                  borderBottom: "1px solid #e0e0e0",
+                  textTransform: "uppercase",
+                  fontWeight: "bold",
+                }}
               >
-                ×
-              </button>
-            </div>
+                {getCategoryDisplayName(category)}
+              </h3>
 
-            <div className="modal-body">
-              <div className="customer-name-input">
-                <label>Nama Pelanggan (opsional):</label>
-                <input
-                  type="text"
-                  placeholder="Masukkan nama pelanggan"
-                  value={newOrderCustomerName}
-                  onChange={(e) => setNewOrderCustomerName(e.target.value)}
-                  className="customer-name-field"
-                />
-              </div>
+              <div
+                className="edit-menu-category-content"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: 15,
+                  padding: 20,
+                  background: "#f1f3f4",
+                  border: "2px dashed #ff6b6b",
+                }}
+              >
+                {categoryItems.map((item) => {
+                  if (!item?.id_menu) return null;
+                  const currentOpts =
+                    editOrderItemSelections[item.id_menu] || {
+                      spiciness: "",
+                      temperature: "",
+                    };
+                  const qty =
+                    findEditOrderCartItem(item.id_menu, currentOpts)?.quantity || 0;
 
-              <div className="order-modal-content">
-                <div className="menu-selection-section">
-                  <h4>Pilih Menu</h4>
-                  <div className="menu-items-grid">
-                    {Object.entries(groupMenuByCategory(menuItems)).map(([category, items]) => (
-                      <div key={category} className="menu-category-section">
-                        <h5 className="menu-category-title">
-                          {getCategoryDisplayName(category)}
-                        </h5>
-                        <div className="menu-items-list">
-                          {items.map((item) => (
-                            <div key={item.id_menu} className="menu-item-card">
-                              <MenuItemImage
-                                imageUrl={item.image_url}
-                                altText={item.name}
-                                className="menu-item-image"
-                                style={{ width: '60px', height: '60px', borderRadius: '8px' }}
+                  return (
+                    <div
+                      key={item.id_menu}
+                      className={`edit-menu-item ${qty > 0 ? "selected" : ""}`}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        padding: 15,
+                        background: qty > 0 ? "#e8f4fd" : "#fff",
+                        borderRadius: 10,
+                        border: `2px solid ${qty > 0 ? "#3498db" : "#e0e0e0"}`,
+                        minHeight: 160,
+                        cursor: "pointer",
+                        transition: "all .2s ease",
+                        position: "relative",
+                        gap: 10,
+                      }}
+                    >
+                      <div
+                        className="edit-menu-item-header"
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <span
+                          className="edit-menu-item-name"
+                          style={{
+                            fontWeight: 600,
+                            color: "#2c3e50",
+                            fontSize: "0.95em",
+                            flex: 1,
+                            marginRight: 8,
+                          }}
+                        >
+                          {item.name || "Unknown Item"}
+                        </span>
+                        <span
+                          className="edit-menu-item-price"
+                          style={{
+                            color: "#27ae60",
+                            fontWeight: "bold",
+                            fontSize: "0.95em",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Rp {formatPrice(item.price)}
+                        </span>
+                      </div>
+
+                      {item.category?.startsWith("menu mie") && (
+                        <div
+                          className="edit-item-options-group"
+                          style={{
+                            margin: "8px 0",
+                            padding: 8,
+                            background: "#f9f9f9",
+                            borderRadius: 6,
+                            border: "1px solid #e0e0e0",
+                          }}
+                        >
+                          <p
+                            className="edit-option-label"
+                            style={{
+                              fontWeight: 600,
+                              color: "#2c3e50",
+                              marginBottom: 6,
+                              fontSize: "0.85em",
+                            }}
+                          >
+                            Kepedasan:
+                          </p>
+                          <div
+                            className="edit-radio-group"
+                            style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                          >
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-spiciness-${item.id_menu}`}
+                                value="tidak pedas"
+                                checked={currentOpts.spiciness === "tidak pedas"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "spiciness",
+                                    "tidak pedas"
+                                  )
+                                }
                               />
-                              <div className="menu-item-info">
-                                <h6>{item.name}</h6>
-                                <p className="menu-item-price">Rp {formatPrice(item.price)}</p>
-                              </div>
-                              
-                              <div className="menu-item-options">
-                                <select
-                                  value={newOrderItemSelections[item.id_menu]?.spiciness || ""}
-                                  onChange={(e) =>
-                                    handleNewOrderOptionChange(item.id_menu, "spiciness", e.target.value)
-                                  }
-                                  className="option-select"
-                                >
-                                  <option value="">Tingkat Pedas</option>
-                                  <option value="Tidak Pedas">Tidak Pedas</option>
-                                  <option value="Pedas Level 1">Pedas Level 1</option>
-                                  <option value="Pedas Level 2">Pedas Level 2</option>
-                                  <option value="Pedas Level 3">Pedas Level 3</option>
-                                </select>
-                                
-                                <select
-                                  value={newOrderItemSelections[item.id_menu]?.temperature || ""}
-                                  onChange={(e) =>
-                                    handleNewOrderOptionChange(item.id_menu, "temperature", e.target.value)
-                                  }
-                                  className="option-select"
-                                >
-                                  <option value="">Suhu</option>
-                                  <option value="Dingin">Dingin</option>
-                                  <option value="Normal">Normal</option>
-                                  <option value="Hangat">Hangat</option>
-                                  <option value="Panas">Panas</option>
-                                </select>
-                              </div>
-                              
-                              <button
-                                onClick={() => addNewItemToOrderCart(item)}
-                                className="add-to-cart-button"
-                              >
-                                Tambah ke Keranjang
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="cart-section">
-                  <h4>Keranjang Pesanan</h4>
-                  {newOrderCart.length === 0 ? (
-                    <p className="empty-cart-message">Keranjang kosong</p>
-                  ) : (
-                    <>
-                      <div className="cart-items">
-                        {newOrderCart.map((cartItem, idx) => (
-                          <div key={idx} className="cart-item">
-                            <div className="cart-item-info">
-                              <span className="cart-item-name">{cartItem.name}</span>
-                              <div className="cart-item-options">
-                                {cartItem.options?.spiciness && (
-                                  <span className="cart-option">Pedas: {cartItem.options.spiciness}</span>
-                                )}
-                                {cartItem.options?.temperature && (
-                                  <span className="cart-option">Suhu: {cartItem.options.temperature}</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="cart-item-controls">
-                              <button
-                                onClick={() => removeNewItemFromOrderCart(cartItem)}
-                                className="quantity-button"
-                              >
-                                -
-                              </button>
-                              <span className="cart-item-quantity">{cartItem.quantity}</span>
-                              <button
-                                onClick={() => addNewItemToOrderCart({ 
-                                  id_menu: cartItem.id_menu, 
-                                  name: cartItem.name, 
-                                  price: cartItem.price 
-                                })}
-                                className="quantity-button"
-                              >
-                                +
-                              </button>
-                            </div>
-                            <div className="cart-item-price">
-                              Rp {formatPrice(cartItem.quantity * cartItem.price)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <div className="cart-summary">
-                        <div className="cart-total-items">
-                          Total Item: {getNewOrderTotalItems()}
-                        </div>
-                        <div className="cart-total-price">
-                          Total Harga: Rp {formatPrice(getNewOrderTotalPrice())}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                onClick={() => setIsAddOrderModalOpen(false)}
-                className="modal-button secondary"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleAddOrderForCashier}
-                disabled={newOrderCart.length === 0 || isSubmittingOrder}
-                className="modal-button primary"
-              >
-                {isSubmittingOrder ? "Membuat Pesanan..." : "Buat Pesanan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Order Modal */}
-      {isEditOrderModalOpen && (
-        <div className="modal-overlay" onClick={closeEditOrder}>
-          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Edit Pesanan #{selectedOrderForDetail?.order_id}</h3>
-              <button className="modal-close-button" onClick={closeEditOrder}>
-                ×
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="order-modal-content">
-                <div className="menu-selection-section">
-                  <h4>Pilih Menu</h4>
-                  <div className="menu-items-grid">
-                    {Object.entries(groupMenuByCategory(menuItems)).map(([category, items]) => (
-                      <div key={category} className="menu-category-section">
-                        <h5 className="menu-category-title">
-                          {getCategoryDisplayName(category)}
-                        </h5>
-                        <div className="menu-items-list">
-                          {items.map((item) => (
-                            <div key={item.id_menu} className="menu-item-card">
-                              <MenuItemImage
-                                imageUrl={item.image_url}
-                                altText={item.name}
-                                className="menu-item-image"
-                                style={{ width: '60px', height: '60px', borderRadius: '8px' }}
+                              Tidak Pedas
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-spiciness-${item.id_menu}`}
+                                value="pedas sedang"
+                                checked={currentOpts.spiciness === "pedas sedang"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "spiciness",
+                                    "pedas sedang"
+                                  )
+                                }
                               />
-                              <div className="menu-item-info">
-                                <h6>{item.name}</h6>
-                                <p className="menu-item-price">Rp {formatPrice(item.price)}</p>
-                              </div>
-                              
-                              <div className="menu-item-options">
-                                <select
-                                  value={editOrderItemSelections[item.id_menu]?.spiciness || ""}
-                                  onChange={(e) =>
-                                    handleEditOrderOptionChange(item.id_menu, "spiciness", e.target.value)
-                                  }
-                                  className="option-select"
-                                >
-                                  <option value="">Tingkat Pedas</option>
-                                  <option value="Tidak Pedas">Tidak Pedas</option>
-                                  <option value="Pedas Level 1">Pedas Level 1</option>
-                                  <option value="Pedas Level 2">Pedas Level 2</option>
-                                  <option value="Pedas Level 3">Pedas Level 3</option>
-                                </select>
-                                
-                                <select
-                                  value={editOrderItemSelections[item.id_menu]?.temperature || ""}
-                                  onChange={(e) =>
-                                    handleEditOrderOptionChange(item.id_menu, "temperature", e.target.value)
-                                  }
-                                  className="option-select"
-                                >
-                                  <option value="">Suhu</option>
-                                  <option value="Dingin">Dingin</option>
-                                  <option value="Normal">Normal</option>
-                                  <option value="Hangat">Hangat</option>
-                                  <option value="Panas">Panas</option>
-                                </select>
-                              </div>
-                              
-                              <button
-                                onClick={() => addItemToEditOrderCart(item)}
-                                className="add-to-cart-button"
-                              >
-                                Tambah ke Keranjang
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="cart-section">
-                  <h4>Keranjang Edit</h4>
-                  {editOrderCart.length === 0 ? (
-                    <p className="empty-cart-message">Keranjang kosong</p>
-                  ) : (
-                    <>
-                      <div className="cart-items">
-                        {editOrderCart.map((cartItem, idx) => (
-                          <div key={idx} className="cart-item">
-                            <div className="cart-item-info">
-                              <span className="cart-item-name">{cartItem.name}</span>
-                              <div className="cart-item-options">
-                                {cartItem.options?.spiciness && (
-                                  <span className="cart-option">Pedas: {cartItem.options.spiciness}</span>
-                                )}
-                                {cartItem.options?.temperature && (
-                                  <span className="cart-option">Suhu: {cartItem.options.temperature}</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="cart-item-controls">
-                              <button
-                                onClick={() => removeItemFromEditOrderCart(cartItem)}
-                                className="quantity-button"
-                              >
-                                -
-                              </button>
-                              <span className="cart-item-quantity">{cartItem.quantity}</span>
-                              <button
-                                onClick={() => addItemToEditOrderCart({ 
-                                  id_menu: cartItem.id_menu, 
-                                  name: cartItem.name, 
-                                  price: cartItem.price 
-                                })}
-                                className="quantity-button"
-                              >
-                                +
-                              </button>
-                            </div>
-                            <div className="cart-item-price">
-                              Rp {formatPrice(cartItem.quantity * cartItem.price)}
-                            </div>
+                              Pedas Sedang
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-spiciness-${item.id_menu}`}
+                                value="pedas"
+                                checked={currentOpts.spiciness === "pedas"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "spiciness",
+                                    "pedas"
+                                  )
+                                }
+                              />
+                              Pedas
+                            </label>
                           </div>
-                        ))}
-                      </div>
-                      
-                      <div className="cart-summary">
-                        <div className="cart-total-items">
-                          Total Item: {getEditOrderTotalItems()}
                         </div>
-                        <div className="cart-total-price">
-                          Total Harga: Rp {formatPrice(getEditOrderTotalPrice())}
+                      )}
+
+                      {item.category?.startsWith("minuman") && (
+                        <div
+                          className="edit-item-options-group"
+                          style={{
+                            margin: "8px 0",
+                            padding: 8,
+                            background: "#f9f9f9",
+                            borderRadius: 6,
+                            border: "1px solid #e0e0e0",
+                          }}
+                        >
+                          <p
+                            className="edit-option-label"
+                            style={{
+                              fontWeight: 600,
+                              color: "#2c3e50",
+                              marginBottom: 6,
+                              fontSize: "0.85em",
+                            }}
+                          >
+                            Suhu:
+                          </p>
+                          <div
+                            className="edit-radio-group"
+                            style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                          >
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-temperature-${item.id_menu}`}
+                                value="dingin"
+                                checked={currentOpts.temperature === "dingin"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "temperature",
+                                    "dingin"
+                                  )
+                                }
+                              />
+                              Dingin
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
+                              <input
+                                type="radio"
+                                name={`edit-temperature-${item.id_menu}`}
+                                value="tidak dingin"
+                                checked={currentOpts.temperature === "tidak dingin"}
+                                onChange={() =>
+                                  handleEditOrderOptionChange(
+                                    item.id_menu,
+                                    "temperature",
+                                    "tidak dingin"
+                                  )
+                                }
+                              />
+                              Tidak Dingin
+                            </label>
+                          </div>
                         </div>
+                      )}
+
+                      <div
+                        className="edit-quantity-controls"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          marginTop: "auto",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <button
+                          className="edit-qty-btn"
+                          onClick={() =>
+                            removeItemFromEditOrderCart({
+                              id_menu: item.id_menu,
+                              options: currentOpts,
+                            })
+                          }
+                          disabled={qty === 0}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            border: "1px solid #ddd",
+                            background: "#fff",
+                            borderRadius: "50%",
+                            fontSize: "1em",
+                            fontWeight: "bold",
+                            cursor: qty === 0 ? "not-allowed" : "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            opacity: qty === 0 ? 0.5 : 1,
+                          }}
+                        >
+                          -
+                        </button>
+                        <span
+                          className="edit-qty-display"
+                          style={{
+                            fontSize: "1em",
+                            fontWeight: "bold",
+                            color: "#2c3e50",
+                            minWidth: 24,
+                            textAlign: "center",
+                            padding: 6,
+                            background: "#f8f9fa",
+                            borderRadius: 6,
+                            border: "1px solid #e0e0e0",
+                          }}
+                        >
+                          {qty}
+                        </span>
+                        <button
+                          className="edit-qty-btn"
+                          onClick={() => addItemToEditOrderCart(item)}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            border: "1px solid #ddd",
+                            background: "#fff",
+                            borderRadius: "50%",
+                            fontSize: "1em",
+                            fontWeight: "bold",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          +
+                        </button>
                       </div>
-                    </>
-                  )}
-                  
-                  <div className="order-note-section">
-                    <label>Catatan Pesanan:</label>
-                    <textarea
-                      value={editOrderNote}
-                      onChange={(e) => setEditOrderNote(e.target.value)}
-                      placeholder="Tambahkan catatan pesanan..."
-                      className="order-note-textarea"
-                      rows={3}
-                    />
-                  </div>
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          )
+        )}
 
-            <div className="modal-footer">
-              <button onClick={closeEditOrder} className="modal-button secondary">
-                Batal
-              </button>
-              <button
-                onClick={handleSaveEditOrder}
-                disabled={editOrderCart.length === 0}
-                className="modal-button primary"
-              >
-                Simpan Perubahan
-              </button>
-            </div>
-          </div>
+        <div className="edit-note-section">
+          <label htmlFor="editOrderNote" className="edit-section-title">
+            Catatan Pesanan:
+          </label>
+          <textarea
+            id="editOrderNote"
+            className="edit-note-input"
+            placeholder="Tambahkan catatan untuk pesanan ini..."
+            value={editOrderNote}
+            onChange={(e) => setEditOrderNote(e.target.value)}
+          />
         </div>
-      )}
+
+        <div className="edit-order-summary">
+          <div className="edit-section-title">Ringkasan Pesanan</div>
+          <div className="edit-summary-list">
+            {editOrderCart.length === 0 ? (
+              <p>Keranjang kosong</p>
+            ) : (
+              editOrderCart.map((item, i) => {
+                const key = `${item.id_menu}-${item.options?.spiciness || ""}-${item.options?.temperature || ""}-${i}`;
+                return (
+                  <div key={key} className="edit-summary-item">
+                    <span>
+                      {item.quantity || 0}x {item.name || "Unknown Item"}
+                    </span>
+                    <span>
+                      Rp {formatPrice(Number(item.price || 0) * Number(item.quantity || 0))}
+                    </span>
+                    {(item.options?.spiciness || item.options?.temperature) && (
+                      <div className="edit-summary-options">
+                        {item.options?.spiciness && <span>({item.options.spiciness})</span>}
+                        {item.options?.temperature && <span>({item.options.temperature})</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="edit-summary-total">
+            <span>Total:</span>
+            <span>Rp {formatPrice(getEditOrderTotalPrice())}</span>
+          </div>
+
+          <button
+            className="edit-save-btn"
+            onClick={handleSaveEditOrder}
+            disabled={getEditOrderTotalItems() === 0}
+          >
+            Simpan Perubahan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Payment Modal */}
       <PaymentModal
@@ -2928,6 +2752,256 @@ const AdminPage = () => {
         totalAmount={selectedOrderTotalAmount}
         onPaymentConfirmed={updateOrderPaymentStatus}
       />
+
+      {/* Modal Tambah Pesanan */}
+      {isAddOrderModalOpen && (
+        <div className="add-order-modal-overlay">
+          <div className="add-order-container">
+            <div className="add-order-header">
+              <button
+                className="back-btn"
+                onClick={() => {
+                  setIsAddOrderModalOpen(false);
+                  setNewOrderCustomerName("");
+                  setNewOrderCart([]);
+                  const sel = {};
+                  (menuItems || []).forEach((it) => {
+                    if (it?.id_menu)
+                      sel[it.id_menu] = { spiciness: "", temperature: "" };
+                  });
+                  setNewOrderItemSelections(sel);
+                }}
+              >
+                ←
+              </button>
+              <h2>Tambah Pesanan Baru</h2>
+            </div>
+
+            <div className="add-detail-section">
+              <div className="add-section-title">Detail Pesanan</div>
+              <div className="add-input-group">
+                <label htmlFor="customerName">Nama Pelanggan (Take Away):</label>
+                <input
+                  type="text"
+                  id="customerName"
+                  value={newOrderCustomerName}
+                  onChange={(e) => setNewOrderCustomerName(e.target.value)}
+                  className="add-input"
+                  placeholder="Masukkan nama pelanggan"
+                />
+                <small className="add-input-note">
+                  *Nama akan ditampilkan sebagai identifikasi untuk pesanan Take Away
+                </small>
+              </div>
+            </div>
+
+            <div className="add-menu-section">
+              <div className="add-section-title">Menu Tersedia</div>
+
+              {Object.entries(groupMenuByCategory(menuItems)).map(
+                ([category, categoryItems]) => (
+                  <div key={category} className="add-menu-category-section">
+                    <h3 className="add-category-title">
+                      {getCategoryDisplayName(category)}
+                    </h3>
+
+                    {categoryItems.map((item) => {
+                      if (!item?.id_menu) return null;
+                      const currentOpts =
+                        newOrderItemSelections[item.id_menu] || {
+                          spiciness: "",
+                          temperature: "",
+                        };
+                      const qty =
+                        findNewOrderCartItem(item.id_menu, currentOpts)?.quantity || 0;
+
+                      return (
+                        <div
+                          key={item.id_menu}
+                          className={`add-menu-item ${qty > 0 ? "selected" : ""}`}
+                        >
+                          <div className="add-menu-item-header">
+                            <span className="add-menu-item-name">
+                              {item.name || "Unknown Item"}
+                            </span>
+                            <span className="add-menu-item-price">
+                              Rp {formatPrice(item.price)}
+                            </span>
+                          </div>
+
+                          {item.category?.startsWith("menu mie") && (
+                            <div className="add-item-options-group">
+                              <p className="add-option-label">Kepedasan:</p>
+                              <div className="add-radio-group">
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name={`add-spiciness-${item.id_menu}`}
+                                    value="tidak pedas"
+                                    checked={currentOpts.spiciness === "tidak pedas"}
+                                    onChange={() =>
+                                      handleNewOrderOptionChange(
+                                        item.id_menu,
+                                        "spiciness",
+                                        "tidak pedas"
+                                      )
+                                    }
+                                  />{" "}
+                                  Tidak Pedas
+                                </label>
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name={`add-spiciness-${item.id_menu}`}
+                                    value="pedas sedang"
+                                    checked={currentOpts.spiciness === "pedas sedang"}
+                                    onChange={() =>
+                                      handleNewOrderOptionChange(
+                                        item.id_menu,
+                                        "spiciness",
+                                        "pedas sedang"
+                                      )
+                                    }
+                                  />{" "}
+                                  Pedas Sedang
+                                </label>
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name={`add-spiciness-${item.id_menu}`}
+                                    value="pedas"
+                                    checked={currentOpts.spiciness === "pedas"}
+                                    onChange={() =>
+                                      handleNewOrderOptionChange(
+                                        item.id_menu,
+                                        "spiciness",
+                                        "pedas"
+                                      )
+                                    }
+                                  />{" "}
+                                  Pedas
+                                </label>
+                              </div>
+                            </div>
+                          )}
+
+                          {item.category?.startsWith("minuman") && (
+                            <div className="add-item-options-group">
+                              <p className="add-option-label">Suhu:</p>
+                              <div className="add-radio-group">
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name={`add-temperature-${item.id_menu}`}
+                                    value="dingin"
+                                    checked={currentOpts.temperature === "dingin"}
+                                    onChange={() =>
+                                      handleNewOrderOptionChange(
+                                        item.id_menu,
+                                        "temperature",
+                                        "dingin"
+                                      )
+                                    }
+                                  />{" "}
+                                  Dingin
+                                </label>
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name={`add-temperature-${item.id_menu}`}
+                                    value="tidak dingin"
+                                    checked={currentOpts.temperature === "tidak dingin"}
+                                    onChange={() =>
+                                      handleNewOrderOptionChange(
+                                        item.id_menu,
+                                        "temperature",
+                                        "tidak dingin"
+                                      )
+                                    }
+                                  />{" "}
+                                  Tidak Dingin
+                                </label>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="add-quantity-controls">
+                            <button
+                              className="add-qty-btn"
+                              onClick={() =>
+                                removeNewItemFromOrderCart({
+                                  id_menu: item.id_menu,
+                                  options: currentOpts,
+                                })
+                              }
+                              disabled={qty === 0}
+                            >
+                              -
+                            </button>
+                            <span className="add-qty-display">{qty}</span>
+                            <button
+                              className="add-qty-btn"
+                              onClick={() => addNewItemToOrderCart(item)}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              )}
+
+              <div className="add-order-summary">
+                <div className="add-section-title">Ringkasan Pesanan Baru</div>
+                <div className="add-summary-list">
+                  {newOrderCart.length === 0 ? (
+                    <p>Keranjang kosong</p>
+                  ) : (
+                    newOrderCart.map((item, i) => {
+                      const key = `${item.id_menu}-${item.options?.spiciness || ""}-${item.options?.temperature || ""}-${i}`;
+                      return (
+                        <div key={key} className="add-summary-item">
+                          <span>
+                            {item.quantity || 0}x {item.name || "Unknown Item"}
+                          </span>
+                          <span>
+                            Rp {formatPrice(Number(item.price || 0) * Number(item.quantity || 0))}
+                          </span>
+                          {(item.options?.spiciness || item.options?.temperature) && (
+                            <div className="add-summary-options">
+                              {item.options?.spiciness && <span>({item.options.spiciness})</span>}
+                              {item.options?.temperature && <span>({item.options.temperature})</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="add-summary-total">
+                  <span>Total:</span>
+                  <span>Rp {formatPrice(getNewOrderTotalPrice())}</span>
+                </div>
+
+                <button
+                  className="add-save-btn"
+                  onClick={handleAddOrderForCashier}
+                  disabled={getNewOrderTotalItems() === 0 || isSubmittingOrder}
+                  style={{
+                    opacity: isSubmittingOrder ? 0.6 : 1,
+                    cursor: isSubmittingOrder ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSubmittingOrder ? 'Memproses...' : 'Buat Pesanan'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
