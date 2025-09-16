@@ -1938,7 +1938,7 @@ const showEditOrder = (order) => {
         )}
 
         {/* Manajemen Menu */}
-                {activeTab === "manajemen-menu" && userRole === "admin" && (
+        {activeTab === "manajemen-menu" && userRole === "admin" && (
           <div className="admin-section-box">
             <div className="menu-header-controls">
               {activeMenuSubTab === "menu-list" ? (
@@ -1982,12 +1982,17 @@ const showEditOrder = (order) => {
                         key={item.id_menu}
                         className="menu-item-management-card"
                       >
-                        {/* GAMBAR YANG DIPERBAIKI */}
-                        <MenuItemImage
-                          imageUrl={item.image_url}
-                          altText={item.name}
+                        <img
+                          src={
+                            item.image_url ||
+                            "https://placehold.co/150x150/CCCCCC/000000?text=No+Image"
+                          }
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "https://placehold.co/150x150/CCCCCC/000000?text=No+Image";
+                          }}
+                          alt={item.name || "Menu Item"}
                           className="menu-item-management-image"
-                          style={{ width: '100%', height: '150px', borderRadius: '8px' }}
                         />
                         <p>
                           <strong>{item.name || "Unknown"}</strong> (Rp{" "}
@@ -2094,89 +2099,60 @@ const showEditOrder = (order) => {
                   <option value="camilan-gurih">CAMILAN - GURIH</option>
                   <option value="lain-lain">LAIN-LAIN</option>
                 </select>
-
-                {/* INPUT URL GAMBAR YANG DIPERBAIKI */}
+                
                 <div className="menu-form-input-group" style={{ marginBottom: '15px' }}>
-                  <label htmlFor="imageUrl" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                    URL Gambar:
-                  </label>
-                  <input
-                    type="url"
-                    id="imageUrl"
-                    placeholder="Paste Google Drive link atau direct image URL di sini"
-                    value={newMenu.imageUrlPreview || ''}
-                    onChange={(e) => {
-                      const url = e.target.value.trim();
-                      console.log('Image URL input changed:', url);
-                      setNewMenu((p) => ({ 
-                        ...p, 
-                        imageUrlPreview: url,
-                        imageFile: null
-                      }));
-                    }}
-                    className="menu-form-input"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
-                  <small style={{ 
-                    display: 'block', 
-                    marginTop: '5px', 
-                    fontSize: '12px', 
-                    color: '#666',
-                    fontStyle: 'italic' 
-                  }}>
-                    Gunakan URL langsung ke gambar atau link Google Drive. Preview akan muncul otomatis.
-                  </small>
-                  
-                  {/* Test button untuk debug */}
-                  {newMenu.imageUrlPreview && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const processedUrl = processImageUrl(newMenu.imageUrlPreview);
-                        console.log('Original URL:', newMenu.imageUrlPreview);
-                        console.log('Processed URL:', processedUrl);
-                        window.open(processedUrl, '_blank');
-                      }}
-                      style={{
-                        marginTop: '8px',
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        backgroundColor: '#f8f9fa',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Test URL di tab baru
-                    </button>
-                  )}
-                </div>
+  <label
+    htmlFor="imageUrl"
+    style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}
+  >
+    URL Gambar:
+  </label>
 
-                {/* PREVIEW GAMBAR YANG DIPERBAIKI */}
-                {newMenu.imageUrlPreview && (
-                  <div className="menu-image-preview-container" style={{ marginBottom: '15px' }}>
-                    <MenuItemImage
-                      imageUrl={newMenu.imageUrlPreview}
-                      altText="Preview"
-                      className="menu-image-preview"
-                      style={{ 
-                        maxWidth: '200px', 
-                        maxHeight: '150px', 
-                        border: '1px solid #ddd', 
-                        borderRadius: '4px' 
-                      }}
-                    />
-                    <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
-                      Processed URL: {processImageUrl(newMenu.imageUrlPreview)}
-                    </div>
-                  </div>
-                )}
+  <input
+    type="url"
+    id="imageUrl"
+    placeholder="Paste Google Drive link atau direct image URL di sini"
+    value={newMenu.imageUrlPreview || ''}
+    onChange={(e) => {
+      const url = e.target.value.trim();
+      console.log('Image URL input changed:', url);
+      setNewMenu((p) => ({
+        ...p,
+        imageUrlPreview: url,
+        imageFile: null,
+      }));
+    }}
+    className="menu-form-input"
+    style={{
+      width: '100%',
+      padding: '8px 12px',
+      border: '1px solid #ddd',
+      borderRadius: '4px',
+      fontSize: '14px',
+    }}
+  />
+</div>
+
+{newMenu.imageUrlPreview ? (
+  <div className="menu-image-preview-container" style={{ marginBottom: '15px' }}>
+    <img
+      src={newMenu.imageUrlPreview}
+      alt="Preview"
+      className="menu-image-preview"
+      style={{
+        maxWidth: 200,
+        maxHeight: 150,
+        border: '1px solid #ddd',
+        borderRadius: 4,
+        display: 'block',
+      }}
+      onError={(e) => {
+        e.currentTarget.src =
+          'https://placehold.co/200x150/CCCCCC/000000?text=Invalid+URL';
+      }}
+    />
+  </div>
+) : null}
 
                 <div className="menu-form-actions">
                   <button onClick={handleAddOrUpdateMenu} className="menu-add-button">
