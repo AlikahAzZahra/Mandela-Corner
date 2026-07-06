@@ -505,23 +505,25 @@ const fetchOrders = async (force = false) => {
     setLastRefresh(new Date());
     console.log('Orders state updated successfully');
     
-  } catch (error) {
-    console.error('fetchOrders error:', error);
-    
-    if (error.name === 'AbortError') {
-      console.log('Request was aborted:', error.message || 'Unknown reason');
-    } else {
-      console.error('Unexpected fetchOrders error:', error.message);
-      
-      // Show user-friendly error message
-      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        console.error('Network connectivity issue detected');
-      } else if (error.message.includes('timeout')) {
-        console.error('Request timeout detected');
-      }
-    }
-    
-  } finally {
+    } catch (error) {
+        console.error('fetchOrders error:', error);
+
+        const isAbort = error?.name === 'AbortError' || typeof error === 'string';
+
+        if (isAbort) {
+          console.log('Request was aborted:', error?.message || error || 'Unknown reason');
+        } else {
+          const msg = error?.message || String(error) || '';
+          console.error('Unexpected fetchOrders error:', msg);
+
+          if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+            console.error('Network connectivity issue detected');
+          } else if (msg.includes('timeout')) {
+            console.error('Request timeout detected');
+          }
+        }
+
+      } finally {
     clearTimeout(timeoutId);
     ordersInFlightRef.current = false;
     setTimeout(() => {
