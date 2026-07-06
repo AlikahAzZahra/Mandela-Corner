@@ -390,11 +390,53 @@ function MenuPage() {
   const handleClosePaymentSuccessPopup = () => { setShowPaymentSuccessPopup(false); setPaymentSuccessData(null); };
   const closeCartSidebar = () => setIsCartSidebarOpen(false);
 
-    // Buka modal detail item
-  const handleItemClick = (item) => {
-    setSelectedItem(item);
-    setIsItemModalOpen(true);
-  };
+// Buka modal detail item
+const handleItemClick = (item) => {
+  setSelectedItem(item);
+  setIsItemModalOpen(true);
+};
+
+// Handle add to cart dari modal
+const handleAddToCartFromModal = (itemWithOptions) => {
+  const { quantity, options, ...itemData } = itemWithOptions;
+  
+  // Cek apakah sudah ada di cart dengan opsi yang sama
+  const existingItem = cart.find(cartItem =>
+    cartItem.id_menu === itemData.id_menu &&
+    cartItem.options.spiciness === (options.spiciness || '') &&
+    cartItem.options.temperature === (options.temperature || '') &&
+    (cartItem.options.sugar || '') === (options.sugar || '') &&
+    (cartItem.options.ice || '') === (options.ice || '') &&
+    (cartItem.options.notes || '') === (options.notes || '')
+  );
+
+  if (existingItem) {
+    setCart(prevCart =>
+      prevCart.map(cartItem =>
+        cartItem === existingItem
+          ? { ...cartItem, quantity: cartItem.quantity + quantity }
+          : cartItem
+      )
+    );
+  } else {
+    setCart(prevCart => [
+      ...prevCart,
+      {
+        id_menu: itemData.id_menu,
+        name: itemData.name,
+        price: itemData.price,
+        quantity: quantity,
+        options: {
+          spiciness: options.spiciness || '',
+          temperature: options.temperature || '',
+          sugar: options.sugar || '',
+          ice: options.ice || '',
+          notes: options.notes || '',
+        }
+      }
+    ]);
+  }
+};
 
   // Handle add to cart dari modal
   const handleAddToCartFromModal = (itemWithOptions) => {
