@@ -77,13 +77,12 @@ body.cart-open{ overflow: hidden; }
 .menu-message{ text-align:center; font-size:1.2em; color:#555; margin-top:40px; }
 .menu-error{ color: var(--danger-color); }
 
-/* GRID MENU — UNIVERSAL RESPONSIVE (otomatis untuk semua HP) */
+/* GRID MENU — DEFAULT: DESKTOP & TABLET (grid, seperti semula) */
 .menu-category-title{
   font-size:1.6em; font-weight:800; color:#2d3748; padding:18px 0; margin:14px 0 18px; position:relative; text-transform:uppercase; letter-spacing:.5px;
 }
 .menu-category-title::after{ content:''; position:absolute; bottom:0; left:0; width:60px; height:4px; background:var(--gradient-primary); border-radius:2px; }
 
-/* Default: cocok tablet/desktop kecil */
 .menu-items-grid{
   display:grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -91,7 +90,6 @@ body.cart-open{ overflow: hidden; }
   margin-bottom: 36px;
 }
 
-/* Phone portrait & kecil – grid 2 kolom optimized */
 @media (max-width: 600px){
   .menu-items-grid{
     grid-template-columns: repeat(2, 1fr);
@@ -99,7 +97,6 @@ body.cart-open{ overflow: hidden; }
   }
 }
 
-/* Tablet landscape menengah */
 @media (min-width: 601px) and (max-width: 900px){
   .menu-items-grid{
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -107,7 +104,7 @@ body.cart-open{ overflow: hidden; }
   }
 }
 
-/* KARTU MENU */
+/* KARTU MENU — DEFAULT: DESKTOP & TABLET (kartu vertikal, seperti semula) */
 .menu-item-card{
   background:#fff; padding:0; border-radius:var(--border-radius);
   box-shadow:var(--card-shadow); display:flex; flex-direction:column; overflow:hidden;
@@ -117,13 +114,13 @@ body.cart-open{ overflow: hidden; }
 .menu-item-card:hover{ transform: translateY(-6px) scale(1.015); box-shadow: var(--hover-shadow); }
 .menu-item-card:hover::before{ opacity:1; }
 
-.menu-item-image{ width:100%; height:120px; object-fit:cover; margin:0; transition: transform .35s; position:relative; z-index:2; }
+.menu-item-card > img.menu-item-image{ width:100%; height:120px; object-fit:cover; margin:0; transition: transform .35s; position:relative; z-index:2; }
 .menu-item-card:hover .menu-item-image{ transform: scale(1.04); }
 
-.menu-item-content{ padding:18px; display:flex; flex-direction:column; flex-grow:1; position:relative; z-index:2; }
-.menu-item-name{ font-size:1.18em; font-weight:700; color:#2d3748; margin:0 0 6px; line-height:1.3; }
-.menu-item-description{ color:#718096; font-size:.94em; margin:0 0 10px; flex:1; line-height:1.5; }
-.menu-item-price{ color:var(--success-color); font-weight:800; font-size:1.08em; margin:0 0 12px; }
+.menu-item-card > .menu-item-content{ padding:18px; display:flex; flex-direction:column; flex-grow:1; position:relative; z-index:2; }
+.menu-item-card .menu-item-name{ font-size:1.18em; font-weight:700; color:#2d3748; margin:0 0 6px; line-height:1.3; }
+.menu-item-card .menu-item-description{ color:#718096; font-size:.94em; margin:0 0 10px; flex:1; line-height:1.5; }
+.menu-item-card .menu-item-price{ color:var(--success-color); font-weight:800; font-size:1.08em; margin:0 0 12px; }
 
 /* Opsi */
 .item-options-group{
@@ -216,7 +213,6 @@ body.cart-open{ overflow: hidden; }
 .cart-item-options{ margin-left:48px; margin-top:6px; }
 .cart-item-option{ display:inline-block; margin:2px 4px 2px 0; padding:4px 10px; border-radius:14px; background:linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%); font-size:.75rem; color:#4a5568; font-weight:500; border:1px solid #cbd5e0; }
 
-/* Footer ringkas (summary + tombol) — SELALU TAMPIL */
 .cart-summary-total{
   background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
   border-top: 3px solid var(--success-color);
@@ -225,19 +221,17 @@ body.cart-open{ overflow: hidden; }
 }
 .cart-summary-total strong{ color: var(--success-color); font-size: 1.18rem; font-weight: 800; }
 
-/* Tombol Pesan — sticky agar selalu terlihat */
 .place-order-button{
   border: none; color:#fff; background: var(--gradient-success);
   font-weight: 800; font-size: 1.08rem; padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 8px));
   cursor: pointer; transition: all .25s; text-transform: uppercase; letter-spacing: .6px;
   box-shadow: 0 -4px 20px rgba(72,187,120,.28);
-  position: sticky; bottom: 0; /* kunci di bawah area scroll sidebar */
+  position: sticky; bottom: 0;
   z-index: 2;
 }
 .place-order-button:hover:not(:disabled){ background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(72,187,120,.38); }
 .place-order-button:disabled{ background: #a0aec0; opacity:.75; cursor:not-allowed; }
 
-/* MODAL METODE PEMBAYARAN */
 .payment-method-modal-overlay{
   position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
   display:flex; align-items:center; justify-content:center; z-index:3000; animation: fadeIn .3s ease-out;
@@ -267,7 +261,6 @@ body.cart-open{ overflow: hidden; }
 .payment-method-button.online::after{ content:'📱'; font-size:1.4em; }
 .payment-method-button:hover{ transform: translateY(-2px) scale(1.01); }
 
-/* POPUP HASIL */
 .payment-success-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:3000; animation: fadeIn .4s ease-out; }
 .payment-success-content{
   background:#fff; padding:38px 32px; border-radius:24px; max-width:480px; width:90%; margin:20px; text-align:center;
@@ -303,7 +296,7 @@ body.cart-open{ overflow: hidden; }
   background-color: #f8f9fa;
 }
 
-.menu-item-image {
+.menu-item-image-container .menu-item-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -311,19 +304,18 @@ body.cart-open{ overflow: hidden; }
   border-radius: 12px 12px 0 0;
 }
 
-.menu-item-image.loading {
+.menu-item-image-container .menu-item-image.loading {
   opacity: 0;
 }
 
-.menu-item-image.loaded {
+.menu-item-image-container .menu-item-image.loaded {
   opacity: 1;
 }
 
-.menu-item-image:hover {
+.menu-item-image-container .menu-item-image:hover {
   transform: scale(1.1);
 }
 
-/* Loading State */
 .menu-item-image-loading {
   position: absolute;
   top: 0;
@@ -355,7 +347,6 @@ body.cart-open{ overflow: hidden; }
   100% { transform: rotate(360deg); }
 }
 
-/* Menu Item Card Improvements */
 .menu-item {
   background: white;
   border-radius: 12px;
@@ -375,7 +366,7 @@ body.cart-open{ overflow: hidden; }
   box-shadow: 0 4px 20px rgba(0,123,255,0.3);
 }
 
-.menu-item-content {
+.menu-item .menu-item-content {
   padding: 16px;
 }
 
@@ -383,47 +374,12 @@ body.cart-open{ overflow: hidden; }
   margin-bottom: 12px;
 }
 
-.menu-item-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 4px 0;
-  line-height: 1.4;
-}
-
-.menu-item-price {
-  font-size: 18px;
-  font-weight: 700;
-  color: #27ae60;
-  margin: 0;
-}
-
-.menu-item-description {
-  font-size: 13px;
-  color: #7f8c8d;
-  margin: 0 0 12px 0;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Options Styling */
 .menu-item-options {
   margin: 12px 0;
   padding: 12px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e9ecef;
-}
-
-.option-label {
-  display: block;
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 8px;
-  font-size: 13px;
 }
 
 .radio-group {
@@ -463,7 +419,6 @@ body.cart-open{ overflow: hidden; }
   white-space: nowrap;
 }
 
-/* Quantity Controls */
 .quantity-controls {
   display: flex;
   align-items: center;
@@ -515,43 +470,11 @@ body.cart-open{ overflow: hidden; }
   border: 1px solid #e9ecef;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .menu-item-image-container {
-    height: 120px;
-  }
-  
-  .menu-item-content {
-    padding: 12px;
-  }
-  
-  .menu-item-name {
-    font-size: 14px;
-  }
-  
-  .menu-item-price {
-    font-size: 16px;
-  }
-  
-  .radio-option {
-    font-size: 11px;
-    padding: 4px 8px;
-  }
-  
-  .qty-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
-  }
-}
-
-/* Error State */
 .menu-item-image[src*="placehold.co"] {
   filter: grayscale(100%);
   opacity: 0.7;
 }
 
-/* RESPONSIVE UMUM */
 @media (max-width: 992px){ :root{ --cart-w-desktop: 360px; } }
 @media (max-width: 768px){
   .menu-page-container{ flex-direction:column; }
@@ -563,18 +486,12 @@ body.cart-open{ overflow: hidden; }
   .navbar-text span:first-child{ font-size:1.2em; }
   .navbar-text span:last-child{ font-size:.75em; }
   .cart-toggle-button{ padding:8px 12px; font-size:.9em; }
-  .menu-item-image{ height:150px; }
-  .menu-item-content{ padding:12px; }
-  .menu-item-name{ font-size:0.95em; line-height:1.2; }
-  .menu-item-description{ font-size:0.8em; line-height:1.3; margin-bottom:8px; }
-  .menu-item-price{ font-size:1em; margin-bottom:8px; }
   .quantity-control{ padding:10px; gap:10px; }
   .place-order-button{ font-size:.95rem; padding:14px 16px calc(14px + env(safe-area-inset-bottom, 8px)); }
   .menu-page-title{ font-size:1.8em; margin:12px 0 8px; }
   .menu-category-title{ font-size:1.3em; padding:12px 0; margin:12px 0 12px; }
 }
 
-/* PHONE SANGAT KECIL */
 @media (max-width: 360px){
   .main-navbar{ padding:0 8px; }
   .navbar-text span:first-child{ font-size:1em; }
@@ -583,34 +500,25 @@ body.cart-open{ overflow: hidden; }
   .main-menu-content{ padding:8px 6px; }
   .menu-page-title{ font-size:1.4em; }
   .menu-category-title{ font-size:1.1em; }
-  .menu-item-content{ padding:10px; }
-  .menu-item-image{ height:100px; }
-  .menu-item-name{ font-size:0.85em; }
-  .menu-item-description{ font-size:0.75em; }
-  .menu-item-price{ font-size:0.9em; }
   .quantity-control{ padding:8px; gap:8px; }
   .quantity-buttons{ width:32px; height:32px; font-size:1em; }
   .quantity-display{ font-size:0.9em; padding:6px 10px; }
 }
 
-/* DARK MODE */
 @media (prefers-color-scheme: dark){
   :root{ --light-bg:#1a202c; }
   .menu-page-container{ background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%); }
   .menu-item-card{ background:#2d3748; color:#e2e8f0; border-color:rgba(255,255,255,.1); }
-  .menu-item-name{ color:#e2e8f0; } .menu-item-description{ color:#a0aec0; }
+  .menu-item-card .menu-item-name{ color:#e2e8f0; } .menu-item-card .menu-item-description{ color:#a0aec0; }
 }
 
-/* REDUCED MOTION */
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
   .menu-item-card:hover{ transform:none; }
 }
 
-/* Aksesibilitas */
 button:focus, input:focus{ outline:3px solid rgba(102,126,234,.5); outline-offset:2px; }
 
-/* Cetak */
 @media print{
   .main-navbar, .cart-sidebar, .cart-toggle-button, .payment-method-modal-overlay, .payment-success-overlay{ display:none !important; }
   .menu-page-container{ padding-top:0; background:#fff !important; }
@@ -618,8 +526,63 @@ button:focus, input:focus{ outline:3px solid rgba(102,126,234,.5); outline-offse
   .menu-item-card{ break-inside:avoid; box-shadow:none; border:1px solid #ddd; }
 }
 
-/* Animations */
 @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
 @keyframes modalSlideIn{ from{opacity:0; transform: translateY(-50px) scale(.9)} to{opacity:1; transform: translateY(0) scale(1)} }
 @keyframes successSlideIn{ from{opacity:0; transform: translateY(-30px) scale(.88)} to{opacity:1; transform: translateY(0) scale(1)} }
 @keyframes pulse{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+
+/* =========================================================
+   MOBILE LIST VIEW — HANYA UNTUK HP (max-width: 768px)
+   Ditaruh PALING BAWAH agar menang cascade dari rule di atas.
+   Desktop & tablet TIDAK terpengaruh sama sekali.
+   ========================================================= */
+@media (max-width: 768px){
+  .menu-items-grid{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .menu-item-card{
+    flex-direction: row;
+    align-items: stretch;
+    border-radius: 12px;
+  }
+
+  .menu-item-card > img.menu-item-image{
+    width: 92px;
+    height: 92px;
+    min-width: 92px;
+    max-width: 92px;
+    border-radius: 12px 0 0 12px;
+  }
+
+  .menu-item-card > .menu-item-content{
+    padding: 10px 14px;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .menu-item-card .menu-item-name{
+    font-size: 0.95em;
+    margin-bottom: 4px;
+    line-height: 1.25;
+  }
+
+  .menu-item-card .menu-item-price{
+    font-size: 0.95em;
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 360px){
+  .menu-item-card > img.menu-item-image{
+    width: 78px;
+    height: 78px;
+    min-width: 78px;
+    max-width: 78px;
+  }
+  .menu-item-card .menu-item-name{ font-size: 0.85em; }
+  .menu-item-card .menu-item-price{ font-size: 0.88em; }
+}
