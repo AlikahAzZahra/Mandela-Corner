@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import '../styles/MenuPage.css'; // Import file CSS yang sudah diperbaharui
 import logo from '../assets/logo.jpeg';
+import MenuItemModal from '../components/MenuItemModal';
 
 // Komponen PaymentMethodModal yang sudah diperbaharui
 const PaymentMethodModal = ({ isOpen, onClose, onSelectMethod }) => {
@@ -66,6 +67,9 @@ function MenuPage() {
 
   const API_BASE_URL = 'https://let-s-pay-server.vercel.app/api';
 
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+
   // Helper bersihkan nomor meja
   const cleanTableNumber = (tableNum) => {
     if (!tableNum) return tableNum;
@@ -102,7 +106,7 @@ function MenuPage() {
       if (!Array.isArray(data)) throw new Error('Data menu tidak valid dari server');
       setMenu(data);
       const initialSelections = {};
-      data.forEach(item => { if (item?.id_menu) initialSelections[item.id_menu] = { spiciness: '', temperature: '' }; });
+      data.forEach(item => { if (item?.id_menu) initialSelections[item.id_menu] = { spiciness: '', temperature: '', sugar: '' }; });
       setItemSelections(initialSelections);
     } catch (err) {
       setError(`Gagal memuat menu: ${err.message}`);
@@ -137,20 +141,26 @@ function MenuPage() {
     return cart.find(cartItem =>
       cartItem.id_menu === itemId &&
       cartItem.options.spiciness === (options.spiciness || '') &&
-      cartItem.options.temperature === (options.temperature || '')
+      cartItem.options.temperature === (options.temperature || '') &&
+      (cartItem.options.sugar || '') === (options.sugar || '') &&
+      (cartItem.options.ice || '') === (options.ice || '')
     );
   };
 
   // Tambah item ke cart
   const addToCart = (itemToAdd) => {
-    const optionsForThisItem = itemSelections[itemToAdd.id_menu] || { spiciness: '', temperature: '' };
+    const optionsForThisItem = itemSelections[itemToAdd.id_menu] || { spiciness: '', temperature: '', sugar: '' };
 
     if (itemToAdd.category && itemToAdd.category.startsWith('menu mie') && !optionsForThisItem.spiciness) {
       alert('Silakan pilih tingkat kepedasan untuk ' + itemToAdd.name + '!');
       return;
     }
     if (itemToAdd.category && itemToAdd.category.startsWith('minuman') && !optionsForThisItem.temperature) {
-      alert('Silakan pilih dingin/tidak dingin untuk ' + itemToAdd.name + '!');
+      alert('Silakan pilih suhu untuk ' + itemToAdd.name + '!');
+      return;
+    }
+    if (itemToAdd.category && itemToAdd.category.startsWith('minuman') && !optionsForThisItem.sugar) {
+      alert('Silakan pilih tingkat gula untuk ' + itemToAdd.name + '!');
       return;
     }
 
@@ -205,7 +215,8 @@ function MenuPage() {
         !(
           cartItem.id_menu === itemInCart.id_menu &&
           (cartItem.options?.spiciness || '') === (itemInCart.options?.spiciness || '') &&
-          (cartItem.options?.temperature || '') === (itemInCart.options?.temperature || '')
+          (cartItem.options?.temperature || '') === (itemInCart.options?.temperature || '') &&
+          (cartItem.options?.sugar || '') === (itemInCart.options?.sugar || '')
         )
       );
       if (newCart.length === 0) setIsCartSidebarOpen(false);
@@ -227,7 +238,8 @@ function MenuPage() {
       id_menu: Number(item.id_menu),
       quantity: Number(item.quantity),
       spiciness_level: (item.options?.spiciness && item.options.spiciness !== '') ? String(item.options.spiciness) : null,
-      temperature_level: (item.options?.temperature && item.options.temperature !== '') ? String(item.options.temperature) : null
+      temperature_level: (item.options?.temperature && item.options.temperature !== '') ? String(item.options.temperature) : null,
+      sugar_level: (item.options?.sugar && item.options.sugar !== '') ? String(item.options.sugar) : null
     }));
 
     const tableNumberForAPI = getTableNumberForAPI();
@@ -300,7 +312,7 @@ function MenuPage() {
                 status: 'success'
               });
               setShowPaymentSuccessPopup(true);
-              setCart([]); const resetSel = {}; menu.forEach(it => resetSel[it.id_menu] = { spiciness: '', temperature: '' }); setItemSelections(resetSel); setIsCartSidebarOpen(false);
+              setCart([]); const resetSel = {}; menu.forEach(it => resetSel[it.id_menu] = { spiciness: '', temperature: '', sugar: '' }); setItemSelections(resetSel); setIsCartSidebarOpen(false);
             } catch (orderError) {
               alert(orderError.message);
             }
@@ -327,7 +339,7 @@ function MenuPage() {
               });
               setShowPaymentSuccessPopup(true);
             } finally {
-              setCart([]); const resetSel = {}; menu.forEach(it => resetSel[it.id_menu] = { spiciness: '', temperature: '' }); setItemSelections(resetSel); setIsCartSidebarOpen(false);
+              setCart([]); const resetSel = {}; menu.forEach(it => resetSel[it.id_menu] = { spiciness: '', temperature: '', sugar: '' }); setItemSelections(resetSel); setIsCartSidebarOpen(false);
             }
           },
           onError: () => alert('Pembayaran gagal! Silakan coba lagi.'),
@@ -354,7 +366,7 @@ function MenuPage() {
         }
         await orderResponse.json();
         setShowOrderSuccessPopup(true);
-        setCart([]); const resetSel = {}; menu.forEach(it => resetSel[it.id_menu] = { spiciness: '', temperature: '' }); setItemSelections(resetSel); setIsCartSidebarOpen(false);
+        setCart([]); const resetSel = {}; menu.forEach(it => resetSel[it.id_menu] = { spiciness: '', temperature: '', sugar: '' }); setItemSelections(resetSel); setIsCartSidebarOpen(false);
       } catch (error) {
         alert(`Gagal mengirim pesanan: ${error.message}`);
         return;
@@ -377,6 +389,54 @@ function MenuPage() {
   const handleCloseOrderSuccessPopup = () => setShowOrderSuccessPopup(false);
   const handleClosePaymentSuccessPopup = () => { setShowPaymentSuccessPopup(false); setPaymentSuccessData(null); };
   const closeCartSidebar = () => setIsCartSidebarOpen(false);
+
+    // Buka modal detail item
+  const handleItemClick = (item) => {
+    setSelectedItem(item);
+    setIsItemModalOpen(true);
+  };
+
+  // Handle add to cart dari modal
+  const handleAddToCartFromModal = (itemWithOptions) => {
+    const { quantity, options, ...itemData } = itemWithOptions;
+    
+    // Cek apakah sudah ada di cart dengan opsi yang sama
+    const existingItem = cart.find(cartItem =>
+      cartItem.id_menu === itemData.id_menu &&
+      cartItem.options.spiciness === (options.spiciness || '') &&
+      cartItem.options.temperature === (options.temperature || '') &&
+      (cartItem.options.sugar || '') === (options.sugar || '') &&
+      (cartItem.options.ice || '') === (options.ice || '') &&
+      (cartItem.options.notes || '') === (options.notes || '')
+    );
+
+    if (existingItem) {
+      setCart(prevCart =>
+        prevCart.map(cartItem =>
+          cartItem === existingItem
+            ? { ...cartItem, quantity: cartItem.quantity + quantity }
+            : cartItem
+        )
+      );
+    } else {
+      setCart(prevCart => [
+        ...prevCart,
+        {
+          id_menu: itemData.id_menu,
+          name: itemData.name,
+          price: itemData.price,
+          quantity: quantity,
+          options: {
+            spiciness: options.spiciness || '',
+            temperature: options.temperature || '',
+            sugar: options.sugar || '',
+            ice: options.ice || '',
+            notes: options.notes || '',
+          }
+        }
+      ]);
+    }
+  };  
 
   if (loading) {
     return (
@@ -656,7 +716,12 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
                   const currentQuantityInCart = findCartItem(item.id_menu, currentOptions)?.quantity || 0;
 
                   return (
-                    <div key={item.id_menu} className="menu-item-card">
+                    <div 
+                        key={item.id_menu} 
+                        className="menu-item-card" 
+                        onClick={() => handleItemClick(item)}
+                        style={{ cursor: 'pointer' }}
+                      >
                       <img
                         src={item.image_url || 'https://placehold.co/180x180/667eea/FFFFFF?text=No+Image'}
                         onError={(e) => { e.target.onerror=null; e.target.src='https://placehold.co/180x180/667eea/FFFFFF?text=No+Image'; }}
@@ -717,7 +782,7 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
                                 checked={currentOptions.temperature === 'dingin'}
                                 onChange={() => handleOptionChange(item.id_menu, 'temperature', 'dingin')}
                               />
-                              Dingin
+                              ❄️ Dingin
                             </label>
                             <label>
                               <input
@@ -727,7 +792,44 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
                                 checked={currentOptions.temperature === 'tidak dingin'}
                                 onChange={() => handleOptionChange(item.id_menu, 'temperature', 'tidak dingin')}
                               />
-                              Tidak Dingin
+                              🌡️ Tidak Dingin
+                            </label>
+                          </div>
+                        )}
+
+                        {/* Opsi Gula */}
+                        {item.category && item.category.startsWith('minuman') && (
+                          <div className="item-options-group">
+                            <p className="option-label">Tingkat Gula:</p>
+                            <label>
+                              <input
+                                type="radio"
+                                name={`sugar-${item.id_menu}`}
+                                value="normal"
+                                checked={currentOptions.sugar === 'normal'}
+                                onChange={() => handleOptionChange(item.id_menu, 'sugar', 'normal')}
+                              />
+                              🍬 Normal
+                            </label>
+                            <label>
+                              <input
+                                type="radio"
+                                name={`sugar-${item.id_menu}`}
+                                value="kurang manis"
+                                checked={currentOptions.sugar === 'kurang manis'}
+                                onChange={() => handleOptionChange(item.id_menu, 'sugar', 'kurang manis')}
+                              />
+                              🍃 Kurang Manis
+                            </label>
+                            <label>
+                              <input
+                                type="radio"
+                                name={`sugar-${item.id_menu}`}
+                                value="tidak manis"
+                                checked={currentOptions.sugar === 'tidak manis'}
+                                onChange={() => handleOptionChange(item.id_menu, 'sugar', 'tidak manis')}
+                              />
+                              🚫 Tidak Manis
                             </label>
                           </div>
                         )}
@@ -783,10 +885,11 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
 
                 <div className="cart-item-price">Rp {formatPrice(item.price * item.quantity)}</div>
 
-                {(item.options.spiciness || item.options.temperature) && (
+                {(item.options.spiciness || item.options.temperature || item.options.sugar) && (
                   <div className="cart-item-options">
-                    {item.options.spiciness && <span className="cart-item-option">{item.options.spiciness}</span>}
-                    {item.options.temperature && <span className="cart-item-option">{item.options.temperature}</span>}
+                    {item.options.spiciness && <span className="cart-item-option">🌶️ {item.options.spiciness}</span>}
+                    {item.options.temperature && <span className="cart-item-option">{item.options.temperature === 'dingin' ? '❄️' : '🌡️'} {item.options.temperature}</span>}
+                    {item.options.sugar && <span className="cart-item-option">🍬 {item.options.sugar}</span>}
                   </div>
                 )}
               </div>
@@ -873,6 +976,15 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
           </div>
         </div>
       )}
+      <MenuItemModal
+        item={selectedItem}
+        isOpen={isItemModalOpen}
+        onClose={() => {
+          setIsItemModalOpen(false);
+          setSelectedItem(null);
+        }}
+        onAddToCart={handleAddToCartFromModal}
+      />
     </div>
   );
 }
