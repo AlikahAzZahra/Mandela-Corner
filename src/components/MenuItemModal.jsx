@@ -12,6 +12,14 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
   });
   const [quantity, setQuantity] = useState(1);
 
+  // errors: field -> true kalau field itu wajib diisi & belum dipilih
+  const [errors, setErrors] = useState({
+    spiciness: false,
+    temperature: false,
+    sugarLevel: false,
+    iceLevel: false,
+  });
+
   // Reset state setiap kali modal dibuka dengan item baru
   useEffect(() => {
     if (isOpen && item) {
@@ -23,6 +31,7 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
         notes: '',
       });
       setQuantity(1);
+      setErrors({ spiciness: false, temperature: false, sugarLevel: false, iceLevel: false });
     }
   }, [isOpen, item]);
 
@@ -41,6 +50,8 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
 
   const handleOptionChange = (optionType, value) => {
     setSelectedOptions((prev) => ({ ...prev, [optionType]: value }));
+    // Hapus warning begitu pelanggan memilih opsi itu
+    setErrors((prev) => (prev[optionType] ? { ...prev, [optionType]: false } : prev));
   };
 
   const handleBackdropClick = (e) => {
@@ -48,21 +59,17 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
   };
 
   const handleAddToCart = () => {
-    // Validasi wajib
-    if (isMie && !selectedOptions.spiciness) {
-      alert('Silakan pilih tingkat kepedasan!');
-      return;
-    }
-    if (isMinuman && !selectedOptions.temperature) {
-      alert('Silakan pilih suhu minuman!');
-      return;
-    }
-    if (isMinuman && !selectedOptions.sugarLevel) {
-      alert('Silakan pilih tingkat gula!');
-      return;
-    }
-    if (isMinuman && !selectedOptions.iceLevel) {
-      alert('Silakan pilih tingkat es!');
+    // Validasi wajib -> tampilkan warning inline, jangan pakai alert()
+    const nextErrors = {
+      spiciness: isMie && !selectedOptions.spiciness,
+      temperature: isMinuman && !selectedOptions.temperature,
+      sugarLevel: isMinuman && !selectedOptions.sugarLevel,
+      iceLevel: isMinuman && !selectedOptions.iceLevel,
+    };
+
+    const hasError = Object.values(nextErrors).some(Boolean);
+    if (hasError) {
+      setErrors(nextErrors);
       return;
     }
 
@@ -117,13 +124,13 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
             {isMie && (
               <div className="modal-option-group">
                 <h4 className="modal-option-title">
-                  Tingkat Kepedasan <span className="required">*</span>
+                  🌶️ Tingkat Kepedasan <span className="required">*</span>
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'tidak pedas', label: 'Tidak Pedas' },
-                    { value: 'pedas sedang', label: 'Pedas Sedang' },
-                    { value: 'pedas', label: 'Pedas' },
+                    { value: 'tidak pedas', label: '😊 Tidak Pedas' },
+                    { value: 'pedas sedang', label: '🌶️ Pedas Sedang' },
+                    { value: 'pedas', label: '🔥 Pedas' },
                   ].map((opt) => (
                     <label
                       key={opt.value}
@@ -140,6 +147,9 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
                     </label>
                   ))}
                 </div>
+                {errors.spiciness && (
+                  <p className="modal-option-warning">⚠️ Silakan pilih tingkat kepedasan.</p>
+                )}
               </div>
             )}
 
@@ -147,12 +157,12 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
             {isMinuman && (
               <div className="modal-option-group">
                 <h4 className="modal-option-title">
-                 Suhu <span className="required">*</span>
+                  🌡️ Suhu <span className="required">*</span>
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'dingin', label: 'Dingin' },
-                    { value: 'tidak dingin', label: 'Tidak Dingin (Hangat)' },
+                    { value: 'dingin', label: '❄️ Dingin' },
+                    { value: 'tidak dingin', label: '☕ Tidak Dingin (Hangat)' },
                   ].map((opt) => (
                     <label
                       key={opt.value}
@@ -169,6 +179,9 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
                     </label>
                   ))}
                 </div>
+                {errors.temperature && (
+                  <p className="modal-option-warning">⚠️ Silakan pilih suhu minuman.</p>
+                )}
               </div>
             )}
 
@@ -176,13 +189,13 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
             {isMinuman && (
               <div className="modal-option-group">
                 <h4 className="modal-option-title">
-                  Tingkat Es <span className="required">*</span>
+                  🧊 Tingkat Es <span className="required">*</span>
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'normal ice', label: 'Normal Es' },
-                    { value: 'less ice', label: 'Sedikit Es' },
-                    { value: 'no ice', label: 'Tanpa Es' },
+                    { value: 'normal ice', label: '🧊 Normal Es' },
+                    { value: 'less ice', label: '🫗 Sedikit Es' },
+                    { value: 'no ice', label: '🚫 Tanpa Es' },
                     { value: 'extra ice', label: '❄️❄️ Extra Es' },
                   ].map((opt) => (
                     <label
@@ -200,6 +213,9 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
                     </label>
                   ))}
                 </div>
+                {errors.iceLevel && (
+                  <p className="modal-option-warning">⚠️ Silakan pilih tingkat es.</p>
+                )}
               </div>
             )}
 
@@ -207,14 +223,14 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
             {isMinuman && (
               <div className="modal-option-group">
                 <h4 className="modal-option-title">
-                  Tingkat Gula <span className="required">*</span>
+                  🍬 Tingkat Gula <span className="required">*</span>
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'normal', label: 'Normal' },
-                    { value: 'kurang manis', label: 'Kurang Manis' },
-                    { value: 'tidak manis', label: 'Tidak Manis' },
-                    { value: 'extra manis', label: 'Extra Manis' },
+                    { value: 'normal', label: '🍬 Normal' },
+                    { value: 'kurang manis', label: '🍃 Kurang Manis' },
+                    { value: 'tidak manis', label: '🚫 Tidak Manis' },
+                    { value: 'extra manis', label: '🍯 Extra Manis' },
                   ].map((opt) => (
                     <label
                       key={opt.value}
@@ -231,15 +247,18 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
                     </label>
                   ))}
                 </div>
+                {errors.sugarLevel && (
+                  <p className="modal-option-warning">⚠️ Silakan pilih tingkat gula.</p>
+                )}
               </div>
             )}
 
             {/* Catatan/Notes */}
             <div className="modal-option-group">
-              <h4 className="modal-option-title">Catatan (Opsional)</h4>
+              <h4 className="modal-option-title">📝 Catatan (Opsional)</h4>
               <textarea
                 className="modal-notes-input"
-                placeholder="Catatan Tambahan"
+                placeholder="Contoh: jangan pakai bawang, ekstra sambal, dll..."
                 value={selectedOptions.notes}
                 onChange={(e) => handleOptionChange('notes', e.target.value)}
                 rows={3}
