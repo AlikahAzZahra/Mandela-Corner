@@ -124,13 +124,13 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
             {isMie && (
               <div className="modal-option-group">
                 <h4 className="modal-option-title">
-                  🌶️ Tingkat Kepedasan <span className="required">*</span>
+                  Tingkat Kepedasan <span className="required">*</span>
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'tidak pedas', label: '😊 Tidak Pedas' },
-                    { value: 'pedas sedang', label: '🌶️ Pedas Sedang' },
-                    { value: 'pedas', label: '🔥 Pedas' },
+                    { value: 'tidak pedas', label: 'Tidak Pedas' },
+                    { value: 'pedas sedang', label: 'edas Sedang' },
+                    { value: 'pedas', label: 'Pedas' },
                   ].map((opt) => (
                     <label
                       key={opt.value}
@@ -157,12 +157,12 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
             {isMinuman && (
               <div className="modal-option-group">
                 <h4 className="modal-option-title">
-                  🌡️ Suhu <span className="required">*</span>
+                  Suhu <span className="required">*</span>
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'dingin', label: '❄️ Dingin' },
-                    { value: 'tidak dingin', label: '☕ Tidak Dingin (Hangat)' },
+                    { value: 'dingin', label: 'Dingin' },
+                    { value: 'tidak dingin', label: 'Tidak Dingin (Hangat)' },
                   ].map((opt) => (
                     <label
                       key={opt.value}
@@ -189,14 +189,14 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
             {isMinuman && (
               <div className="modal-option-group">
                 <h4 className="modal-option-title">
-                  🧊 Tingkat Es <span className="required">*</span>
+                  Tingkat Es <span className="required">*</span>
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'normal ice', label: '🧊 Normal Es' },
-                    { value: 'less ice', label: '🫗 Sedikit Es' },
-                    { value: 'no ice', label: '🚫 Tanpa Es' },
-                    { value: 'extra ice', label: '❄️❄️ Extra Es' },
+                    { value: 'normal ice', label: 'Normal Es' },
+                    { value: 'less ice', label: 'Sedikit Es' },
+                    { value: 'no ice', label: 'Tanpa Es' },
+                    { value: 'extra ice', label: 'Extra Es' },
                   ].map((opt) => (
                     <label
                       key={opt.value}
@@ -223,14 +223,14 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
             {isMinuman && (
               <div className="modal-option-group">
                 <h4 className="modal-option-title">
-                  🍬 Tingkat Gula <span className="required">*</span>
+                  Tingkat Gula <span className="required">*</span>
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'normal', label: '🍬 Normal' },
-                    { value: 'kurang manis', label: '🍃 Kurang Manis' },
-                    { value: 'tidak manis', label: '🚫 Tidak Manis' },
-                    { value: 'extra manis', label: '🍯 Extra Manis' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'kurang manis', label: 'Kurang Manis' },
+                    { value: 'tidak manis', label: 'Tidak Manis' },
+                    { value: 'extra manis', label: 'Extra Manis' },
                   ].map((opt) => (
                     <label
                       key={opt.value}
