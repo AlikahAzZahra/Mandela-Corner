@@ -1526,6 +1526,16 @@ useEffect(() => {
   };
 }, [token]); // Keep dependency on token
 
+useEffect(() => {
+  const checkDateChange = setInterval(() => {
+    const currentDate = getTodayDateString();
+    if (currentDate !== lastRefresh.toISOString().split('T')[0]) {
+      fetchOrders(true);
+    }
+  }, 60000);
+  return () => clearInterval(checkDateChange);
+}, [lastRefresh]);
+
 // TAMBAHAN: useEffect untuk debug state changes
 useEffect(() => {
   console.log('MenuItems state updated:', menuItems.length, 'items');
@@ -1784,17 +1794,17 @@ const showEditOrder = (order) => {
               </div>
             </div>
 
-            {orders.length === 0 ? (
-              <p className="no-data-message">Belum ada pesanan masuk.</p>
+            {getTodayOrders().length === 0 ? (
+              <p className="no-data-message">Belum ada pesanan hari ini.</p>
             ) : (
               <div className="orders-grid">
-                {orders.map((order, idx) => {
+                {getTodayOrders().map((order, idx) => {
                   if (!order) return null;
                   const orderItems = normalizeOrderItems(order.items);
                   return (
                     <div key={order.order_id || idx} className="order-card">
-                      <div className="order-card-header">
-                        <h3>ID Pesanan: {order.order_id || "N/A"}</h3>
+                    <div className="order-card-header">
+                        <h3>Pesanan #{order.daily_order_number ?? "-"}</h3>
                       </div>
 
                       <div className="order-card-content">
