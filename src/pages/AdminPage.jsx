@@ -322,7 +322,18 @@ const AdminPage = () => {
   const [isLoadingReport, setIsLoadingReport] = useState(false);
 
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-
+  // Filter pesanan hari ini
+  const getTodayOrders = () => {
+    const today = getTodayDateString();
+    return orders.filter(order => {
+      if (!order?.order_time) return false;
+      const orderDate = new Date(order.order_time);
+      const y = orderDate.getFullYear();
+      const m = String(orderDate.getMonth() + 1).padStart(2, '0');
+      const d = String(orderDate.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}` === today;
+    });
+  };
   /**
    * ========================
    * Auth
@@ -2504,146 +2515,6 @@ const showEditOrder = (order) => {
                         </span>
                       </div>
 
-                      {item.category?.startsWith("menu mie") && (
-                        <div
-                          className="edit-item-options-group"
-                          style={{
-                            margin: "8px 0",
-                            padding: 8,
-                            background: "#f9f9f9",
-                            borderRadius: 6,
-                            border: "1px solid #e0e0e0",
-                          }}
-                        >
-                          <p
-                            className="edit-option-label"
-                            style={{
-                              fontWeight: 600,
-                              color: "#2c3e50",
-                              marginBottom: 6,
-                              fontSize: "0.85em",
-                            }}
-                          >
-                            Kepedasan:
-                          </p>
-                          <div
-                            className="edit-radio-group"
-                            style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                          >
-                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
-                              <input
-                                type="radio"
-                                name={`edit-spiciness-${item.id_menu}`}
-                                value="tidak pedas"
-                                checked={currentOpts.spiciness === "tidak pedas"}
-                                onChange={() =>
-                                  handleEditOrderOptionChange(
-                                    item.id_menu,
-                                    "spiciness",
-                                    "tidak pedas"
-                                  )
-                                }
-                              />
-                              Tidak Pedas
-                            </label>
-                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
-                              <input
-                                type="radio"
-                                name={`edit-spiciness-${item.id_menu}`}
-                                value="pedas sedang"
-                                checked={currentOpts.spiciness === "pedas sedang"}
-                                onChange={() =>
-                                  handleEditOrderOptionChange(
-                                    item.id_menu,
-                                    "spiciness",
-                                    "pedas sedang"
-                                  )
-                                }
-                              />
-                              Pedas Sedang
-                            </label>
-                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
-                              <input
-                                type="radio"
-                                name={`edit-spiciness-${item.id_menu}`}
-                                value="pedas"
-                                checked={currentOpts.spiciness === "pedas"}
-                                onChange={() =>
-                                  handleEditOrderOptionChange(
-                                    item.id_menu,
-                                    "spiciness",
-                                    "pedas"
-                                  )
-                                }
-                              />
-                              Pedas
-                            </label>
-                          </div>
-                        </div>
-                      )}
-
-                      {item.category?.startsWith("minuman") && (
-                        <div
-                          className="edit-item-options-group"
-                          style={{
-                            margin: "8px 0",
-                            padding: 8,
-                            background: "#f9f9f9",
-                            borderRadius: 6,
-                            border: "1px solid #e0e0e0",
-                          }}
-                        >
-                          <p
-                            className="edit-option-label"
-                            style={{
-                              fontWeight: 600,
-                              color: "#2c3e50",
-                              marginBottom: 6,
-                              fontSize: "0.85em",
-                            }}
-                          >
-                            Suhu:
-                          </p>
-                          <div
-                            className="edit-radio-group"
-                            style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                          >
-                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
-                              <input
-                                type="radio"
-                                name={`edit-temperature-${item.id_menu}`}
-                                value="dingin"
-                                checked={currentOpts.temperature === "dingin"}
-                                onChange={() =>
-                                  handleEditOrderOptionChange(
-                                    item.id_menu,
-                                    "temperature",
-                                    "dingin"
-                                  )
-                                }
-                              />
-                              Dingin
-                            </label>
-                            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.8em", padding: "4px 8px", borderRadius: 12, background: "#fff", border: "1px solid #ddd" }}>
-                              <input
-                                type="radio"
-                                name={`edit-temperature-${item.id_menu}`}
-                                value="tidak dingin"
-                                checked={currentOpts.temperature === "tidak dingin"}
-                                onChange={() =>
-                                  handleEditOrderOptionChange(
-                                    item.id_menu,
-                                    "temperature",
-                                    "tidak dingin"
-                                  )
-                                }
-                              />
-                              Tidak Dingin
-                            </label>
-                          </div>
-                        </div>
-                      )}
-
                       <div
                         className="edit-quantity-controls"
                         style={{
@@ -2653,7 +2524,7 @@ const showEditOrder = (order) => {
                           marginTop: "auto",
                           justifyContent: "center",
                         }}
-                      >
+                      >     
                         <button
                           className="edit-qty-btn"
                           onClick={() =>
