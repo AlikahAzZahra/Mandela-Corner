@@ -550,6 +550,19 @@ body.cart-open{ overflow: hidden; }
   border: none;
 }
 
+.cart-item .cart-item-note{
+  margin-top: 6px;
+  font-size: .82em;
+  color: #fff;
+  font-style: italic;
+  background: rgba(255,255,255,.15);
+  padding: 4px 10px;
+  border-radius: 10px;
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-word;
+}
+
 .cart-item-controls{
   display: flex;
   align-items: center;

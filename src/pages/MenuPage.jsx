@@ -724,6 +724,11 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
                       {item.options.sugar && <span className="cart-item-option">{item.options.sugar}</span>}
                     </div>
                   )}
+                  {item.options.notes && (
+                    <div className="cart-item-note">
+                      📝 {item.options.notes}
+                    </div>
+                  )}
                 </div>
 
                 <div className="cart-item-controls">
