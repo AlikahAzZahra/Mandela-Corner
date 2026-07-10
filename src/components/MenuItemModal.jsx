@@ -129,7 +129,7 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
                 <div className="modal-radio-group">
                   {[
                     { value: 'tidak pedas', label: 'Tidak Pedas' },
-                    { value: 'pedas sedang', label: 'edas Sedang' },
+                    { value: 'pedas sedang', label: 'Pedas Sedang' },
                     { value: 'pedas', label: 'Pedas' },
                   ].map((opt) => (
                     <label
@@ -162,7 +162,7 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
                 <div className="modal-radio-group">
                   {[
                     { value: 'dingin', label: 'Dingin' },
-                    { value: 'tidak dingin', label: 'Tidak Dingin (Hangat)' },
+                    { value: 'tidak dingin', label: 'Tidak Dingin' },
                   ].map((opt) => (
                     <label
                       key={opt.value}

@@ -208,6 +208,21 @@ function MenuPage() {
     });
   };
 
+  // Tambah qty langsung dari sidebar keranjang (tanpa validasi ulang opsi)
+  const incrementCartItem = (itemInCart) => {
+    setCart(prevCart => {
+      const existingCartItem = findCartItem(itemInCart.id_menu, itemInCart.options);
+      if (existingCartItem) {
+        return prevCart.map(cartItem =>
+          cartItem === existingCartItem
+            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            : cartItem
+        );
+      }
+      return prevCart;
+    });
+  };
+
   // Hapus varian dari cart
   const deleteFromCart = (itemInCart) => {
     setCart(prevCart => {
@@ -239,7 +254,9 @@ function MenuPage() {
       quantity: Number(item.quantity),
       spiciness_level: (item.options?.spiciness && item.options.spiciness !== '') ? String(item.options.spiciness) : null,
       temperature_level: (item.options?.temperature && item.options.temperature !== '') ? String(item.options.temperature) : null,
-      sugar_level: (item.options?.sugar && item.options.sugar !== '') ? String(item.options.sugar) : null
+      sugar_level: (item.options?.sugar && item.options.sugar !== '') ? String(item.options.sugar) : null,
+      ice_level: (item.options?.ice && item.options.ice !== '') ? String(item.options.ice) : null,
+      notes: (item.options?.notes && item.options.notes !== '') ? String(item.options.notes) : null
     }));
 
     const tableNumberForAPI = getTableNumberForAPI();
@@ -689,32 +706,49 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
           {cart.length === 0 ? (
             <p className="empty-cart-message">Keranjang Anda kosong.</p>
           ) : (
-            cart.map((item, index) => (
+          cart.map((item, index) => (
               <div key={index} className="cart-item">
-                <button
-                  onClick={() => deleteFromCart(item)}
-                  className="remove-from-cart-button"
-                  title="Hapus item"
-                >
-                  ×
-                </button>
-
-                <div className="cart-item-top-row">
-                  <div className="cart-item-left">
-                    <span className="cart-item-quantity">{item.quantity}x</span>
+              <div className="cart-item-info">
+                  <div className="cart-item-name-row">
+                    <span className="cart-item-subtext">
+                      {item.quantity}x &nbsp; Rp {formatPrice(item.price)}
+                    </span>
                     <span className="cart-item-name">{item.name}</span>
                   </div>
+
+                  {(item.options.spiciness || item.options.temperature || item.options.sugar) && (
+                    <div className="cart-item-options">
+                      {item.options.spiciness && <span className="cart-item-option">{item.options.spiciness}</span>}
+                      {item.options.temperature && <span className="cart-item-option">{item.options.temperature === 'dingin' ? 'Dingin' : 'Tidak Dingin'} {item.options.temperature}</span>}
+                      {item.options.sugar && <span className="cart-item-option"> {item.options.sugar}</span>}
+                    </div>
+                  )}
                 </div>
 
-                <div className="cart-item-price">Rp {formatPrice(item.price * item.quantity)}</div>
-
-                {(item.options.spiciness || item.options.temperature || item.options.sugar) && (
-                  <div className="cart-item-options">
-                    {item.options.spiciness && <span className="cart-item-option">🌶️ {item.options.spiciness}</span>}
-                    {item.options.temperature && <span className="cart-item-option">{item.options.temperature === 'dingin' ? '❄️' : '🌡️'} {item.options.temperature}</span>}
-                    {item.options.sugar && <span className="cart-item-option">🍬 {item.options.sugar}</span>}
-                  </div>
-                )}
+                <div className="cart-item-controls">
+                  <button
+                    className="cart-qty-btn minus"
+                    onClick={() => removeFromCart(item)}
+                    title="Kurangi"
+                  >
+                    −
+                  </button>
+                  <span className="cart-qty-value">{item.quantity}</span>
+                  <button
+                    className="cart-qty-btn plus"
+                    onClick={() => incrementCartItem(item)}
+                    title="Tambah"
+                  >
+                    +
+                  </button>
+                  <button
+                    className="cart-delete-btn"
+                    onClick={() => deleteFromCart(item)}
+                    title="Hapus item"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -722,7 +756,7 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
 
         {/* Footer keranjang (summary + tombol) */}
         <div className="cart-summary-total">
-          <p>Total: <strong>Rp {formatPrice(getTotalPrice())}</strong></p>
+          <p> Total <strong>Rp {formatPrice(getTotalPrice())}</strong></p>
         </div>
         <button
           onClick={handlePlaceOrderClick}
@@ -743,27 +777,29 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
 
       {/* Popup bayar di kasir */}
       {showOrderSuccessPopup && (
-        <div className="payment-success-overlay">
-          <div className="payment-success-content">
+        <div className="payment-success-overlay" onClick={handleCloseOrderSuccessPopup}>
+          <div className="payment-success-content" onClick={(e) => e.stopPropagation()}>
             <div className="success-icon">🎉</div>
-            <h2 style={{ color: 'var(--success-color)', marginBottom: '20px' }}>Pesanan Berhasil Dibuat!</h2>
-            <p style={{ fontSize: '1.1em', color: '#555', marginBottom: '20px' }}>
+            <h2 style={{ color: '#fff', marginBottom: '20px' }}>Pesanan Berhasil Dibuat!</h2>
+            <p style={{ fontSize: '1.1em', color: '#ffffff', marginBottom: '20px' }}>
               Pesanan Anda telah kami terima dan sedang diproses. Silakan lakukan pembayaran di kasir.
             </p>
-            <button onClick={handleCloseOrderSuccessPopup} className="success-button">OK, Mengerti</button>
           </div>
         </div>
       )}
 
       {/* Popup online (success/pending) */}
       {showPaymentSuccessPopup && paymentSuccessData && (
-        <div className="payment-success-overlay">
-          <div className="payment-success-content">
+        <div 
+          className="payment-success-overlay" 
+          onClick={handleClosePaymentSuccessPopup}
+        >
+          <div className="payment-success-content" onClick={(e) => e.stopPropagation()}>
             {paymentSuccessData.status === 'pending' ? (
               <>
                 <div className="pending-icon">⏳</div>
                 <h2 style={{ color: 'var(--warning-color)', marginBottom: '20px' }}>Pembayaran Sedang Diproses!</h2>
-                <p style={{ fontSize: '1.1em', color: '#555', marginBottom: '15px' }}>
+                <p style={{ fontSize: '1.1em', color: '#ffffff', marginBottom: '15px' }}>
                   Pembayaran Anda sedang dalam proses verifikasi.
                 </p>
                 <div className="success-details pending">
@@ -772,16 +808,14 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
                   <p><strong>Metode:</strong> {paymentSuccessData.paymentType}</p>
                   <p><strong>ID Transaksi:</strong> {paymentSuccessData.transactionId}</p>
                 </div>
-                <p style={{ fontSize: '0.95em', color: '#6c757d', marginBottom: '20px' }}>
+                <p style={{ fontSize: '0.95em', color: '#ffffff', marginBottom: '20px' }}>
                   Kami akan memproses pesanan Anda setelah pembayaran dikonfirmasi.
                 </p>
-                <button onClick={handleClosePaymentSuccessPopup} className="success-button pending">OK, Mengerti</button>
               </>
             ) : (
               <>
-                <div className="success-icon">🎉</div>
                 <h2 style={{ color: 'var(--success-color)', marginBottom: '20px' }}>Pembayaran Berhasil!</h2>
-                <p style={{ fontSize: '1.1em', color: '#555', marginBottom: '15px' }}>
+                <p style={{ fontSize: '1.1em', color: '#ffffff', marginBottom: '15px' }}>
                   Terima kasih! Pembayaran Anda telah berhasil dan pesanan sedang diproses.
                 </p>
                 <div className="success-details">
@@ -790,10 +824,9 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
                   <p><strong>Metode:</strong> {paymentSuccessData.paymentType}</p>
                   <p><strong>ID Transaksi:</strong> {paymentSuccessData.transactionId}</p>
                 </div>
-                <p style={{ fontSize: '0.95em', color: '#6c757d', marginBottom: '20px' }}>
+                <p style={{ fontSize: '0.95em', color: '#ffffff', marginBottom: '20px' }}>
                   Pesanan Anda akan segera disiapkan. Silakan menunggu di tempat duduk Anda.
                 </p>
-                <button onClick={handleClosePaymentSuccessPopup} className="success-button">OK, Mengerti</button>
               </>
             )}
           </div>
@@ -810,6 +843,14 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
       />
     </div>
   );
+      useEffect(() => {
+        if (showOrderSuccessPopup) {
+          const timer = setTimeout(() => {
+            setShowOrderSuccessPopup(false);
+          }, 3000);
+          return () => clearTimeout(timer);
+        }
+      }, [showOrderSuccessPopup]);
 }
 
 export default MenuPage;

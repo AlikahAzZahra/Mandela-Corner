@@ -122,7 +122,13 @@ const toUnifiedItem = (item) => {
       name: "Unknown Item",
       price: 0,
       quantity: 0,
-      options: { spiciness: "", temperature: "" }
+      options: {
+      spiciness: item?.spiciness_level ?? item?.spiciness ?? item?.spice_level ?? "",
+      temperature: item?.temperature_level ?? item?.temperature ?? item?.temp_level ?? "",
+      sugar: item?.sugar_level ?? item?.sugar ?? "",
+      ice: item?.ice_level ?? item?.ice ?? "",
+      notes: item?.notes ?? "",
+    },
     };
   }
 
@@ -1363,6 +1369,9 @@ const handleAddOrderForCashier = async () => {
         const name = i?.menu_name ?? i?.name ?? "Unknown Item";
         const spice = i?.spiciness_level ?? i?.spiciness;
         const temp = i?.temperature_level ?? i?.temperature;
+        const sugar = i?.sugar_level ?? i?.sugar;
+        const ice = i?.ice_level ?? i?.ice;
+        const notes = i?.notes;
         return `
           <div class="receipt-item-line">
             <div class="item-details">
@@ -1373,7 +1382,8 @@ const handleAddOrderForCashier = async () => {
               <span style="font-size: 11px;">@ Rp ${formatPrice(each)}</span>
               <span></span>
             </div>
-            ${spice || temp ? `<div class="item-options">${spice ? `* ${spice}` : ""} ${temp ? `* ${temp}` : ""}</div>` : ""}
+            ${(spice || temp || sugar || ice) ? `<div class="item-options">${[spice, temp, sugar, ice].filter(Boolean).map(v => `* ${v}`).join(" ")}</div>` : ""}
+            ${notes ? `<div class="item-options" style="font-style:italic;">📝 ${notes}</div>` : ""}
           </div>
         `;
       })
@@ -1870,32 +1880,42 @@ const showEditOrder = (order) => {
                         <div className="order-items-section">
                           <div className="order-items-header">Item Pesanan:</div>
                           <ul className="order-items-list">
-                            {orderItems.map((i, ii) => {
-                              if (!i) return null;
-                              const qty = Number(i?.quantity) || 0;
-                              const each = Number(i?.price_at_order ?? i?.price ?? 0);
-                              const name = i?.menu_name ?? i?.name ?? "Unknown Item";
-                              const spice = i?.spiciness_level ?? i?.spiciness;
-                              const temp = i?.temperature_level ?? i?.temperature;
-                              return (
-                                <li key={ii} className="order-item-detail">
-                                  <div className="order-item-info">
+                          {orderItems.map((i, ii) => {
+                            if (!i) return null;
+                            const qty = Number(i?.quantity) || 0;
+                            const each = Number(i?.price_at_order ?? i?.price ?? 0);
+                            const name = i?.menu_name ?? i?.name ?? "Unknown Item";
+                            const spice = i?.spiciness_level ?? i?.spiciness;
+                            const temp = i?.temperature_level ?? i?.temperature;
+                            const sugar = i?.sugar_level ?? i?.sugar;
+                            const ice = i?.ice_level ?? i?.ice;
+                            const notes = i?.notes;
+                            return (
+                              <li key={ii} className="order-item-detail">
+                                <div className="order-item-info">
                                     <span className="order-item-name">
                                       {qty}x {name}
                                     </span>
-                                    {(spice || temp) && (
+                                    {(spice || temp || sugar || ice) && (
                                       <div className="order-item-options">
                                         {spice && <span className="order-item-option">({spice})</span>}
                                         {temp && <span className="order-item-option">({temp})</span>}
+                                        {sugar && <span className="order-item-option">({sugar})</span>}
+                                        {ice && <span className="order-item-option">({ice})</span>}
+                                      </div>
+                                    )}
+                                    {notes && (
+                                      <div className="order-item-note">
+                                        📝 {notes}
                                       </div>
                                     )}
                                   </div>
-                                  <div className="order-item-price">
-                                    Rp {formatPrice(qty * each)}
-                                  </div>
-                                </li>
-                              );
-                            })}
+                                <div className="order-item-price">
+                                  Rp {formatPrice(qty * each)}
+                                </div>
+                              </li>
+                            );
+                          })}
                           </ul>
                         </div>
 
