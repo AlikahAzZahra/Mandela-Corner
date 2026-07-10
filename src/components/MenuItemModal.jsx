@@ -49,9 +49,23 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
   };
 
   const handleOptionChange = (optionType, value) => {
-    setSelectedOptions((prev) => ({ ...prev, [optionType]: value }));
+    setSelectedOptions((prev) => {
+      const next = { ...prev, [optionType]: value };
+      // Kalau ganti suhu jadi "tidak dingin", kosongkan pilihan es yang mungkin sudah dipilih
+      if (optionType === 'temperature' && value === 'tidak dingin') {
+        next.iceLevel = '';
+      }
+      return next;
+    });
     // Hapus warning begitu pelanggan memilih opsi itu
-    setErrors((prev) => (prev[optionType] ? { ...prev, [optionType]: false } : prev));
+    setErrors((prev) => {
+      const next = prev[optionType] ? { ...prev, [optionType]: false } : prev;
+      // Kalau ganti ke "tidak dingin", warning tingkat es juga tidak relevan lagi
+      if (optionType === 'temperature' && value === 'tidak dingin' && next.iceLevel) {
+        return { ...next, iceLevel: false };
+      }
+      return next;
+    });
   };
 
   const handleBackdropClick = (e) => {
@@ -64,7 +78,7 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
       spiciness: isMie && !selectedOptions.spiciness,
       temperature: isMinuman && !selectedOptions.temperature,
       sugarLevel: isMinuman && !selectedOptions.sugarLevel,
-      iceLevel: isMinuman && !selectedOptions.iceLevel,
+      iceLevel: isMinuman && selectedOptions.temperature === 'dingin' && !selectedOptions.iceLevel,
     };
 
     const hasError = Object.values(nextErrors).some(Boolean);
@@ -128,9 +142,10 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'tidak pedas', label: 'Tidak Pedas' },
-                    { value: 'pedas sedang', label: 'Pedas Sedang' },
-                    { value: 'pedas', label: 'Pedas' },
+                    { value: 'Tidak Pedas', label: 'Tidak Pedas' },
+                    { value: 'Pedas Sedang', label: 'Pedas Sedang' },
+                    { value: 'Pedas', label: 'Pedas' },
+                    { value: 'Sangat Pedas', label: 'Sangat Pedas' },    
                   ].map((opt) => (
                     <label
                       key={opt.value}
@@ -186,17 +201,17 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
             )}
 
             {/* Opsi Es Level (Minuman) */}
-            {isMinuman && (
+            {isMinuman && selectedOptions.temperature === 'dingin' && (
               <div className="modal-option-group">
                 <h4 className="modal-option-title">
                   Tingkat Es <span className="required">*</span>
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'normal ice', label: 'Normal Es' },
-                    { value: 'less ice', label: 'Sedikit Es' },
-                    { value: 'no ice', label: 'Tanpa Es' },
-                    { value: 'extra ice', label: 'Extra Es' },
+                    { value: 'Tidak Pakai Es', label: '0%' },
+                    { value: 'Sediki Es', label: '25%' },
+                    { value: 'Es Sedang', label: '50%' },
+                    { value: 'Es Normal', label: '100%' },
                   ].map((opt) => (
                     <label
                       key={opt.value}
@@ -227,10 +242,10 @@ const MenuItemModal = ({ item, isOpen, onClose, onAddToCart }) => {
                 </h4>
                 <div className="modal-radio-group">
                   {[
-                    { value: 'normal', label: 'Normal' },
-                    { value: 'kurang manis', label: 'Kurang Manis' },
-                    { value: 'tidak manis', label: 'Tidak Manis' },
-                    { value: 'extra manis', label: 'Extra Manis' },
+                    { value: 'Tidak Manis', label: '0%' },
+                    { value: 'Sedikit Manis', label: '25%' },
+                    { value: 'Manis Sedang', label: '50%' },
+                    { value: 'Manis', label: '100%' },
                   ].map((opt) => (
                     <label
                       key={opt.value}

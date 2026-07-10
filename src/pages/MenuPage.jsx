@@ -716,11 +716,12 @@ const MenuPageExample = ({ menuItems, onAddToCart, cartItemsMap, onOptionChange,
                     <span className="cart-item-name">{item.name}</span>
                   </div>
 
-                  {(item.options.spiciness || item.options.temperature || item.options.sugar) && (
+                  {(item.options.spiciness || item.options.temperature || item.options.sugar || item.options.ice) && (
                     <div className="cart-item-options">
                       {item.options.spiciness && <span className="cart-item-option">{item.options.spiciness}</span>}
-                      {item.options.temperature && <span className="cart-item-option">{item.options.temperature === 'dingin' ? 'Dingin' : 'Tidak Dingin'} {item.options.temperature}</span>}
-                      {item.options.sugar && <span className="cart-item-option"> {item.options.sugar}</span>}
+                      {item.options.temperature && <span className="cart-item-option">{item.options.temperature === 'dingin' ? 'Dingin' : 'Tidak Dingin'}</span>}
+                      {item.options.ice && <span className="cart-item-option">{item.options.ice}</span>}
+                      {item.options.sugar && <span className="cart-item-option">{item.options.sugar}</span>}
                     </div>
                   )}
                 </div>
