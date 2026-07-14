@@ -65,7 +65,7 @@ function MenuPage() {
   // Modal metode pembayaran
   const [isPaymentMethodModalOpen, setIsPaymentMethodModalOpen] = useState(false);
 
-  const API_BASE_URL = 'https://let-s-pay-server.vercel.app/api';
+  const API_BASE_URL = 'https://mandela-corner-server.vercel.app/api';
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);

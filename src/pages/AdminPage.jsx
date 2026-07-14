@@ -233,7 +233,7 @@ const getCategoryDisplayName = (category) => {
  */
 const AdminPage = () => {
   // ====== Config
-  const [apiBaseUrl] = useState("https://let-s-pay-server.vercel.app/api");
+  const [apiBaseUrl] = useState("https://mandela-corner-server.vercel.app/api");
 
   // ====== Refs
   const ordersAbortRef = useRef(null);

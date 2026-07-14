@@ -7,7 +7,7 @@ const PaymentModal = ({ isOpen, onClose, orderId, totalAmount, onPaymentConfirme
     const [cashReceived, setCashReceived] = useState('');
     const [change, setChange] = useState(0);
 
-    const API_BASE_URL = 'https://let-s-pay-server.vercel.app/api';
+    const API_BASE_URL = 'https://mandela-corner-server.vercel.app/api';
 
     // Reset state saat modal dibuka/tutup
     useEffect(() => {
